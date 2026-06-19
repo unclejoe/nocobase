@@ -1,0 +1,21 @@
+{
+  "Webhook": "Webhook",
+  "Webhook trigger": "Webhook 触发器",
+  "Receive HTTP calls from external systems to trigger workflows. Suitable for data pushes and event notifications from third-party systems, such as payment callbacks and message notifications.": "接收外部系统的 HTTP 调用来触发工作流。适用于第三方系统的数据推送和事件通知，例如支付回调、消息通知等。",
+  "Request methods": "请求方法",
+  "Allowed HTTP methods for this webhook endpoint": "此 Webhook 端点允许的 HTTP 方法",
+  "Secret": "密钥",
+  "Optional secret for request verification. Clients must send it in the x-webhook-secret header.": "用于请求验证的可选密钥。客户端必须在 x-webhook-secret 请求头中发送。",
+  "Webhook URL": "Webhook 地址",
+  "Copy": "复制",
+  "Copied": "已复制",
+  "Trigger data": "触发器数据",
+  "Request headers": "请求头",
+  "Request query": "查询参数",
+  "Request method": "请求方法",
+  "Webhook not found or not enabled": "Webhook 不存在或未启用",
+  "HTTP method not allowed": "HTTP 方法不允许",
+  "Invalid webhook secret": "Webhook 密钥无效",
+  "Webhook received": "Webhook 已接收",
+  "Use JSON as trigger data for testing.": "使用 JSON 作为测试触发数据。"
+}

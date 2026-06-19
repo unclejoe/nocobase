@@ -1,0 +1,30 @@
+{
+  "name": "@nocobase/plugin-workflow-webhook",
+  "version": "0.1.0",
+  "displayName": "Workflow: Webhook",
+  "displayName.zh-CN": "工作流：Webhook",
+  "description": "Receive HTTP calls from external systems and trigger events.",
+  "description.zh-CN": "接收外部系统的 HTTP 调用并触发事件。",
+  "main": "./dist/server/index.js",
+  "devDependencies": {
+    "antd": "5.x",
+    "joi": "^17.13.3",
+    "react": "18.x",
+    "react-i18next": "^11.15.1"
+  },
+  "peerDependencies": {
+    "@nocobase/client": "2.x",
+    "@nocobase/server": "2.x",
+    "@nocobase/plugin-workflow": "2.x"
+  },
+  "keywords": [
+    "Workflow"
+  ],
+  "nocobase": {
+    "supportedVersions": [
+      "2.x"
+    ],
+    "editionLevel": 0
+  },
+  "license": "AGPL-3.0"
+}

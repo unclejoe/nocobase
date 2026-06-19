@@ -1,0 +1,21 @@
+{
+  "Webhook": "Webhook",
+  "Webhook trigger": "Webhook trigger",
+  "Receive HTTP calls from external systems to trigger workflows. Suitable for data pushes and event notifications from third-party systems, such as payment callbacks and message notifications.": "Receive HTTP calls from external systems to trigger workflows. Suitable for data pushes and event notifications from third-party systems, such as payment callbacks and message notifications.",
+  "Request methods": "Request methods",
+  "Allowed HTTP methods for this webhook endpoint": "Allowed HTTP methods for this webhook endpoint",
+  "Secret": "Secret",
+  "Optional secret for request verification. Clients must send it in the x-webhook-secret header.": "Optional secret for request verification. Clients must send it in the x-webhook-secret header.",
+  "Webhook URL": "Webhook URL",
+  "Copy": "Copy",
+  "Copied": "Copied",
+  "Trigger data": "Trigger data",
+  "Request headers": "Request headers",
+  "Request query": "Request query",
+  "Request method": "Request method",
+  "Webhook not found or not enabled": "Webhook not found or not enabled",
+  "HTTP method not allowed": "HTTP method not allowed",
+  "Invalid webhook secret": "Invalid webhook secret",
+  "Webhook received": "Webhook received",
+  "Use JSON as trigger data for testing.": "Use JSON as trigger data for testing."
+}
