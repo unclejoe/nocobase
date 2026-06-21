@@ -95,17 +95,12 @@ Legend:
 
 ### 2.1 v1 client (`packages/core/client`, `@nocobase/client`)
 
-> **Runtime caveat (discovered during real-app verification):** the `PoweredBy`
-> footer on the **signin page** (`AuthLayout`) does NOT load `appInfo` — the auth
-> flow only calls `app:getLang`, `systemSettings:get`, `authenticators:publicList`,
-> and `themeConfig`, never `app:getInfo`. So `useCurrentAppInfo()` resolves to
-> `undefined` there and `PoweredBy` renders the default `NocoBase` regardless of
-> `APP_BRAND_*` env. This is **pre-existing auth-flow architecture**, not a
-> regression of this refactor (the same behavior exists on `main`).
-> The footer on **admin pages** works correctly once `appInfo` loads. Closing the
-> signin-footer gap would require wiring brand into the auth flow (via
-> `systemSettings` or a dedicated auth-context `appInfo`), which is out of scope
-> for this refactor.
+> **Signin-footer note:** the `/signin` page (AuthLayout) runs in the auth flow,
+> which never populates `appInfo` (`useCurrentAppInfo()` returns `undefined`
+> there). `PoweredBy` (both v1 and v2) now performs a one-shot direct
+> `app:getInfo` fetch as a fallback when `appInfo` is absent, so the env-driven
+> brand reaches the signin footer too. Verified in the running app: the signin
+> footer renders `Powered by Acme` → acme.example.com with no NocoBase residual.
 
 | # | file:line | Surface | Current source | Target source | Conflict risk |
 |---|---|---|---|---|---|

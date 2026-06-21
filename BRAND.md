@@ -251,17 +251,16 @@ The app was actually booted (Postgres via Podman, Node 20, `nocobase install`,
 | Admin Help menu links | Home→acme.example.com, Handbook(用户手册)→docs.acme.example.com, License(许可证)→acme.example.com/agreement | ✅ confirmed |
 | Admin body scan | `hasAcme: true`, `hasNocoBase: false` | ✅ confirmed |
 | Markdown editor syntax link | reads `appInfo.brand.docsUrl`, fallback to docs.nocobase.com | ✅ unit test 2/2 (admin-context) |
-| **Signin footer (PoweredBy)** | renders **default `NocoBase`** — the auth flow never calls `app:getInfo`, so `useCurrentAppInfo()` is `undefined` on `/signin` | ⚠️ pre-existing limitation (see below) |
+| **Signin footer (PoweredBy)** | renders **`Powered by Acme`** → acme.example.com (PoweredBy now does a one-shot `app:getInfo` fallback fetch since the auth flow doesn't populate `appInfo`) | ✅ confirmed |
 
-**Signin-footer caveat:** the `/signin` page (AuthLayout) is rendered inside the
-auth flow, which deliberately loads only `app:getLang` / `systemSettings:get` /
-`authenticators:publicList` / `themeConfig` — **never `app:getInfo`**. So
-`useCurrentAppInfo()` returns `undefined` there and `PoweredBy` falls back to the
-default `NocoBase` regardless of `APP_BRAND_*`. This is **pre-existing
-auth-flow architecture** (identical behavior on `main`), NOT a regression of this
-refactor. Closing it would require wiring brand into the auth flow (via
-`systemSettings` or an auth-context `appInfo`), which is out of scope. Documented
-in `BRAND_INVENTORY.md` §2.1.
+**Signin-footer:** the `/signin` page (AuthLayout) runs in the auth flow, which
+deliberately loads only `app:getLang` / `systemSettings:get` /
+`authenticators:publicList` / `themeConfig` — never `app:getInfo`. So
+`useCurrentAppInfo()` returns `undefined` there. To keep the footer brandable on
+the signin page, `PoweredBy` (both v1 and v2) now performs a one-shot direct
+`app:getInfo` fetch as a fallback when `appInfo` is absent (guarded so it does
+not double-fetch when `appInfo` is already present). Verified in the running
+app: the signin footer renders `Powered by Acme` → acme.example.com.
 
 **Default fallback** (no env set): footer renders `Powered by
 [NocoBase](https://www.nocobase.com)` and Help menu shows `NocoBase` + the

@@ -9,8 +9,9 @@
 
 import { css, cx } from '@emotion/css';
 import { parseHTML } from '@nocobase/utils/client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAPIClient } from '../api-client';
 import { useCurrentAppInfo } from '../appInfo/CurrentAppInfoProvider';
 import { usePlugin } from '../application';
 import { useToken } from '../style';
@@ -20,6 +21,7 @@ export const PoweredBy = () => {
   const { token } = useToken();
   const customBrandPlugin: any = usePlugin('@nocobase/plugin-custom-brand');
   const data = useCurrentAppInfo();
+  const apiClient = useAPIClient();
   const urls = {
     'en-US': 'https://www.nocobase.com',
     'zh-CN': 'https://www.nocobase.com/cn/',
@@ -36,11 +38,33 @@ export const PoweredBy = () => {
   `;
   const appVersion = `<span class="nb-app-version">v${data?.data?.version}</span>`;
 
+  // The signin page (AuthLayout) does not mount CurrentAppInfoProvider, so
+  // `data` is null there and the env brand would never reach the footer.
+  // Fetch app:getInfo directly as a fallback so the footer stays brandable.
+  const [fallbackBrand, setFallbackBrand] = useState<{ title?: string; homepageUrl?: string } | undefined>();
+  useEffect(() => {
+    if (data || fallbackBrand) {
+      return;
+    }
+    let active = true;
+    apiClient
+      .request({ url: 'app:getInfo' })
+      .then((res: any) => {
+        if (active) {
+          setFallbackBrand(res.data?.data?.brand);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [data, fallbackBrand, apiClient]);
+
   // Resolution order (see BRAND_INVENTORY.md §1): env-driven brand (set via
   // `APP_BRAND_*` env vars, surfaced through `app:getInfo`) wins; otherwise the
   // `@nocobase/plugin-custom-brand` plugin's `brand` HTML template; otherwise the
   // hardcoded "Powered by NocoBase" default.
-  const envBrand = data?.data?.brand;
+  const envBrand = data?.data?.brand || fallbackBrand;
   const envBrandTitle = envBrand?.title;
   const envBrandHtml =
     envBrandTitle || envBrand?.homepageUrl

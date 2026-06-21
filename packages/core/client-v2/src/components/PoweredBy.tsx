@@ -10,8 +10,9 @@
 import { css, cx } from '@emotion/css';
 import { parseHTML } from '@nocobase/utils/client';
 import { theme } from 'antd';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useApp } from '../hooks/useApp';
 import { useCurrentAppInfo } from '../hooks/useCurrentAppInfo';
 import { usePlugin } from '../hooks/usePlugin';
 import { getAppVersionHTML } from '../utils/appVersionHTML';
@@ -33,12 +34,38 @@ const homePageUrls: Record<string, string> = {
  * stylesheet can target it; the env/default branches do not, matching the
  * contract pinned by PoweredBy.test.tsx. The version is escaped via
  * `getAppVersionHTML` so a malicious app version cannot inject script tags.
+ *
+ * The signin page (AuthLayout) runs in the auth flow, which never calls
+ * `app:getInfo`, so `useCurrentAppInfo()` is undefined there. To keep the
+ * footer brandable on the signin page, a one-shot direct fetch of
+ * `app:getInfo` is performed as a fallback when `appInfo` is absent.
  */
 export function PoweredBy() {
   const { i18n } = useTranslation();
   const { token } = theme.useToken();
   const customBrandPlugin: any = usePlugin('@nocobase/plugin-custom-brand');
   const appInfo = useCurrentAppInfo();
+  const app = useApp();
+  // Fallback: on the signin page, the auth flow does not populate `appInfo`,
+  // so fetch it directly so the env-driven brand still reaches the footer.
+  const [fallbackBrand, setFallbackBrand] = useState<{ title?: string; homepageUrl?: string } | undefined>();
+  useEffect(() => {
+    if (appInfo || fallbackBrand) {
+      return;
+    }
+    let active = true;
+    app.apiClient
+      .request({ url: 'app:getInfo' })
+      .then((res: any) => {
+        if (active) {
+          setFallbackBrand(res.data?.data?.brand);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [appInfo, fallbackBrand, app.apiClient]);
   const appVersion = getAppVersionHTML(appInfo?.version);
   const brandStyle = css`
     text-align: center;
@@ -56,7 +83,7 @@ export function PoweredBy() {
   // otherwise the plugin; otherwise the default. The env tier must be checked
   // before the plugin tier so an operator-set APP_BRAND_TITLE overrides an
   // installed @nocobase/plugin-custom-brand.
-  const envBrand = appInfo?.brand;
+  const envBrand = appInfo?.brand || fallbackBrand;
   if (envBrand?.title || envBrand?.homepageUrl) {
     const brandTitle = envBrand.title || 'NocoBase';
     const homePage = envBrand.homepageUrl || homePageUrls[i18n.language] || homePageUrls['en-US'];
