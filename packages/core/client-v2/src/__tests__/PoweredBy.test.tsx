@@ -59,6 +59,68 @@ describe('PoweredBy', () => {
     expect(container.querySelector('.nb-brand')).not.toBeInTheDocument();
   });
 
+  it('should render the env-driven brand (APP_BRAND_*) when app:getInfo provides it', async () => {
+    // Env-driven brand is surfaced as `appInfo.brand` via app:getInfo (set by
+    // APP_BRAND_TITLE / APP_BRAND_HOMEPAGE_URL on the server). It must win over
+    // the hardcoded "Powered by NocoBase" default. See BRAND_INVENTORY.md §1.
+    // `appInfo.brand` resolves asynchronously, so the assertions wait for the
+    // re-render rather than reading the first (default) paint.
+    const { container } = await renderPoweredBy([], {
+      version: '1.2.3',
+      brand: { title: 'MyApp', homepageUrl: 'https://myapp.example.com' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'MyApp' })).toHaveAttribute('href', 'https://myapp.example.com');
+    });
+    expect(container).toHaveTextContent('Powered by MyApp');
+    // The env tier does not carry the `.nb-brand` class — only the
+    // plugin-custom-brand HTML branch does, matching the default-branch contract.
+    expect(container.querySelector('.nb-brand')).not.toBeInTheDocument();
+  });
+
+  it('should let the env-driven brand win over plugin-custom-brand when both are present', async () => {
+    // Precedence per BRAND_INVENTORY.md §1 is env > plugin > default. When an
+    // operator sets APP_BRAND_TITLE, it overrides an installed
+    // @nocobase/plugin-custom-brand rather than deferring to it.
+    const { container } = await renderPoweredBy(
+      [
+        [
+          MockCustomBrandPlugin,
+          {
+            packageName: '@nocobase/plugin-custom-brand',
+            options: {
+              brand: '<span>Plugin Brand</span>',
+            },
+          },
+        ],
+      ],
+      {
+        version: '1.2.3',
+        brand: { title: 'EnvWins' },
+      },
+    );
+
+    await waitFor(() => {
+      expect(container).toHaveTextContent('Powered by EnvWins');
+    });
+    expect(container).not.toHaveTextContent('Plugin Brand');
+  });
+
+  it('should fall back to the default homepage URL when only the env brand title is set', async () => {
+    // If APP_BRAND_HOMEPAGE_URL is unset, the link still points at the locale
+    // nocobase.com default — only the visible title is rebranded.
+    const { container } = await renderPoweredBy([], {
+      version: '1.2.3',
+      brand: { title: 'TitleOnly' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'TitleOnly' })).toHaveAttribute('href', 'https://www.nocobase.com');
+    });
+    expect(container).toHaveTextContent('Powered by TitleOnly');
+  });
+
   it('should render custom-brand HTML and replace appVersion', async () => {
     const { container } = await renderPoweredBy([
       [

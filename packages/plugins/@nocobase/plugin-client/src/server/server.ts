@@ -108,6 +108,18 @@ export class PluginClientServer extends Plugin {
             info.exportAttachmentsAutoModeThreshold = parseInt(process.env['EXPORT_ATTACHMENTS_AUTO_MODE_THRESHOLD']);
           }
 
+          // Operator-set white-label brand config. Read from env so it can be set per-deploy
+          // without touching code. Only keys that are actually set are included; clients fall
+          // back to their built-in defaults for anything absent. See BRAND_INVENTORY.md §1.
+          const brandTitle = process.env['APP_BRAND_TITLE'];
+          const brandHomepageUrl = process.env['APP_BRAND_HOMEPAGE_URL'];
+          if (brandTitle || brandHomepageUrl) {
+            info.brand = {
+              ...(brandTitle ? { title: brandTitle } : {}),
+              ...(brandHomepageUrl ? { homepageUrl: brandHomepageUrl } : {}),
+            };
+          }
+
           ctx.body = info;
           await next();
         },

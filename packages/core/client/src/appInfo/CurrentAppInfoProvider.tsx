@@ -23,6 +23,10 @@ export const useCurrentAppInfo = () => {
       version: string;
       exportLimit?: number;
       name: string;
+      brand?: {
+        title?: string;
+        homepageUrl?: string;
+      };
     };
   }>(CurrentAppInfoContext);
 };

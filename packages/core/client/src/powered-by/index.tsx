@@ -36,12 +36,26 @@ export const PoweredBy = () => {
   `;
   const appVersion = `<span class="nb-app-version">v${data?.data?.version}</span>`;
 
+  // Resolution order (see BRAND_INVENTORY.md §1): env-driven brand (set via
+  // `APP_BRAND_*` env vars, surfaced through `app:getInfo`) wins; otherwise the
+  // `@nocobase/plugin-custom-brand` plugin's `brand` HTML template; otherwise the
+  // hardcoded "Powered by NocoBase" default.
+  const envBrand = data?.data?.brand;
+  const envBrandTitle = envBrand?.title;
+  const envBrandHtml =
+    envBrandTitle || envBrand?.homepageUrl
+      ? `Powered by <a href="${envBrand?.homepageUrl || urls[i18n.language] || urls['en-US']}" target="_blank">${
+          envBrandTitle || 'NocoBase'
+        }</a>`
+      : null;
+
   return (
     <div
       className={cx(style, 'nb-brand')}
       dangerouslySetInnerHTML={{
         __html: parseHTML(
-          customBrandPlugin?.options?.options?.brand ||
+          envBrandHtml ||
+            customBrandPlugin?.options?.options?.brand ||
             `Powered by <a href="${urls[i18n.language] || urls['en-US']}" target="_blank">NocoBase</a>`,
           { appVersion },
         ),
