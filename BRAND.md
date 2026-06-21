@@ -75,6 +75,7 @@ brand-specific judgment.
 | `packages/core/client/src/powered-by/index.tsx` | v1 footer brand resolution | **Low** — same additive pattern. | Same. |
 | `packages/core/client/src/user/Help.tsx` | v1 Help menu header name + Home/Handbook/License links read `appInfo.brand` | **Med** — Help.tsx churns upstream. The refactor keeps the menu structure intact; it only swaps the four literals for `appInfo.brand`-derived values and an additive resolution block. | Keep the brand resolution block (`brandTitle`/`homePageUrl`/`docsUrl`/`agreementUrl`); apply upstream's menu-structure edits verbatim. |
 | `packages/core/client-v2/src/flow/admin-shell/admin-layout/HelpLite.tsx` | v2 Help menu header name + links read `appInfo.brand` | **Med** — same churn as v1 Help. | Same as v1 Help. |
+| `packages/core/client/src/schema-component/antd/markdown/Markdown.Void.tsx` | v1 Markdown editor "Syntax references" link reads `appInfo.brand.docsUrl` | **Low** — single link swap; the edit is additive (read brand from context, fall back to locale default). | Keep the `docsUrl` resolution line; apply upstream's other editor edits verbatim. |
 | `packages/core/client/src/appInfo/CurrentAppInfoProvider.tsx` | v1 `useCurrentAppInfo` type now has optional `brand` field | **Low** — additive optional field. | Keep the `brand?` field; merge upstream's other type changes. |
 | `packages/plugins/@nocobase/plugin-client/src/server/server.ts` | `app:getInfo` now emits a `brand` block from `APP_BRAND_*` env | **Med** — upstream actively edits this handler (the `EXPORT_*` env pattern sits right next to the brand block). Adjacent edits conflict textually (worked example in §4.2). | Keep both blocks; the brand block reads `APP_BRAND_*`, upstream's reads its own var. One-round resolution. |
 | `packages/core/test/setup/client.ts` | Guarded localStorage polyfill for vitest+jsdom | **Low** — upstream rarely edits test setup; the polyfill is a guarded no-op. | If upstream rewrites the setup, re-add the guarded polyfill block (it's self-contained). |
@@ -255,7 +256,7 @@ custom brand with **no "NocoBase" / "nocobase.com" residual**:
 [NocoBase](https://www.nocobase.com)` and Help menu shows `NocoBase` + the
 nocobase.com default links — the fallback contract is intact (asserted in the
 "no brand override" test cases).
-| 3 | `Markdown.Void.tsx` syntax-reference link → `appInfo.brand.docsUrl` | Planned. Low risk. |
+| **3** | `Markdown.Void.tsx` syntax-reference link → `appInfo.brand.docsUrl` | **Done** — slice 3, Markdown.Void.brand.test.tsx 2/2 green, lint clean. Default + env-override paths verified. |
 | — | Locale `FORMULAJS_DOC_URL` / `MATHJS_DOC_URL` | **Deferred** — i18n keys are frozen by constraint. |
 
 Each slice follows the same loop: converge one exposure point → lint → run its

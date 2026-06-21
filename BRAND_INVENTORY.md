@@ -108,7 +108,7 @@ Legend:
 | v1-9 | `src/powered-by/index.tsx:44` | "Powered by" footer override | plugin `options.options.brand` | unchanged (fallback preserved) | Low |
 | v1-10 | `src/document-title/index.tsx:46,68` | browser `document.title` | system-settings `data.title` (already data-driven) | unchanged | Low |
 | v1-11 | `src/route-switch/antd/admin-layout/AdminLayoutComponentV1.tsx:78-97` | admin sidebar logo/title | system-settings `logo.url`/`title` (already data-driven) | unchanged | Low |
-| v1-12 | `src/schema-component/antd/markdown/Markdown.Void.tsx:97` | Markdown editor "Syntax references" link | hardcoded `docs.nocobase.com` URL | `appInfo.brand?.docsUrl` (later slice) | Low |
+| v1-12 | `src/schema-component/antd/markdown/Markdown.Void.tsx:97` | Markdown editor "Syntax references" link | hardcoded `docs.nocobase.com` URL | `appInfo.brand?.docsUrl` | **Done** (slice 3) |
 | v1-13 | `src/locale/*.json` `FORMULAJS_DOC_URL`, `MATHJS_DOC_URL` (17 files × 2 keys) | formula/math editor help link | i18n string value = `docs.nocobase.com` URL | deferred — i18n keys are frozen by constraint; revisit only if required | Low |
 
 > v1-13 is intentionally **deferred**: the constraint forbids changing i18n keys, and these
