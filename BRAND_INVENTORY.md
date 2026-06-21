@@ -95,6 +95,18 @@ Legend:
 
 ### 2.1 v1 client (`packages/core/client`, `@nocobase/client`)
 
+> **Runtime caveat (discovered during real-app verification):** the `PoweredBy`
+> footer on the **signin page** (`AuthLayout`) does NOT load `appInfo` — the auth
+> flow only calls `app:getLang`, `systemSettings:get`, `authenticators:publicList`,
+> and `themeConfig`, never `app:getInfo`. So `useCurrentAppInfo()` resolves to
+> `undefined` there and `PoweredBy` renders the default `NocoBase` regardless of
+> `APP_BRAND_*` env. This is **pre-existing auth-flow architecture**, not a
+> regression of this refactor (the same behavior exists on `main`).
+> The footer on **admin pages** works correctly once `appInfo` loads. Closing the
+> signin-footer gap would require wiring brand into the auth flow (via
+> `systemSettings` or a dedicated auth-context `appInfo`), which is out of scope
+> for this refactor.
+
 | # | file:line | Surface | Current source | Target source | Conflict risk |
 |---|---|---|---|---|---|
 | v1-1 | `src/user/Help.tsx:42` | Help menu header — product name | hardcoded `NocoBase` | `appInfo.brand?.title ?? 'NocoBase'` | **Done** (slice 2, `f033ea17bc`) |

@@ -237,28 +237,41 @@ If an upstream merge ever produces a conflict in a license/copyright file,
 
 ### 6.1 Visual proof (slices 1 + 2)
 
-**Evidence form:** the user confirmed that DOM-render-then-Playwright-rasterized
-screenshots are acceptable for the screenshot-verification gate, because this
-workspace has no database and no built client dist (a real app boot is infeasible
-here). The screenshot files are regenerated artifacts kept in the working tree
-(not committed) at `brand-shots/*.png`; their content is identical to the
-assertions in the passing unit tests.
+### 6.1 Visual proof — verified against the REAL running app
 
-With a sample env brand config (`APP_BRAND_TITLE=Acme`, `APP_BRAND_HOMEPAGE_URL`,
-`APP_BRAND_DOCS_URL`, `APP_BRAND_AGREEMENT_URL`), the four user-visible surfaces
-each show the custom brand with **no "NocoBase" / "nocobase.com" residual**:
+The app was actually booted (Postgres via Podman, Node 20, `nocobase install`,
+`yarn dev` at `http://localhost:13000`) with sample env brand config
+(`APP_BRAND_TITLE=Acme`, `APP_BRAND_HOMEPAGE_URL`, `APP_BRAND_DOCS_URL`,
+`APP_BRAND_AGREEMENT_URL`) and verified with Playwright driving the live app:
 
-| Surface | Renders | Screenshot | Verified by |
-|---|---|---|---|
-| Footer (PoweredBy) | `Powered by [Acme](https://acme.example.com)` | `brand-shots/footer.png` | v2 `PoweredBy.test.tsx` "env-driven brand" |
-| Help menu header + links | `Acme`/`v2.1.9`; Home→acme.example.com, Handbook→docs.acme.example.com, License→acme.example.com/agreement | `brand-shots/help-menu.png` | v1 `Help.test.tsx` "env-driven brand" |
-| Login page footer | `Powered by Acme` (PoweredBy reused on SignIn) | `brand-shots/login.png` | v2 `PoweredBy.test.tsx` |
-| Browser tab title | `Dashboard - Acme` (data-driven from System Settings `title`) | `brand-shots/browser-title.png` | no code change — `document.title` reads system-settings |
+| Surface | Verified result (live app) | Status |
+|---|---|---|
+| `app:getInfo` API | returns `"brand":{"title":"Acme","homepageUrl":"https://acme.example.com","docsUrl":"https://docs.acme.example.com","agreementUrl":"https://acme.example.com/agreement"}` | ✅ confirmed (curl + browser) |
+| Admin Help menu header | renders **`Acme v2.1.9`** (not NocoBase) | ✅ confirmed |
+| Admin Help menu links | Home→acme.example.com, Handbook(用户手册)→docs.acme.example.com, License(许可证)→acme.example.com/agreement | ✅ confirmed |
+| Admin body scan | `hasAcme: true`, `hasNocoBase: false` | ✅ confirmed |
+| Markdown editor syntax link | reads `appInfo.brand.docsUrl`, fallback to docs.nocobase.com | ✅ unit test 2/2 (admin-context) |
+| **Signin footer (PoweredBy)** | renders **default `NocoBase`** — the auth flow never calls `app:getInfo`, so `useCurrentAppInfo()` is `undefined` on `/signin` | ⚠️ pre-existing limitation (see below) |
+
+**Signin-footer caveat:** the `/signin` page (AuthLayout) is rendered inside the
+auth flow, which deliberately loads only `app:getLang` / `systemSettings:get` /
+`authenticators:publicList` / `themeConfig` — **never `app:getInfo`**. So
+`useCurrentAppInfo()` returns `undefined` there and `PoweredBy` falls back to the
+default `NocoBase` regardless of `APP_BRAND_*`. This is **pre-existing
+auth-flow architecture** (identical behavior on `main`), NOT a regression of this
+refactor. Closing it would require wiring brand into the auth flow (via
+`systemSettings` or an auth-context `appInfo`), which is out of scope. Documented
+in `BRAND_INVENTORY.md` §2.1.
 
 **Default fallback** (no env set): footer renders `Powered by
 [NocoBase](https://www.nocobase.com)` and Help menu shows `NocoBase` + the
 nocobase.com default links — the fallback contract is intact (asserted in the
 "no brand override" test cases).
+
+**Unit-test gate (regression-proofing the component logic):** 16/16 tests green —
+v2 `PoweredBy.test.tsx` (7), v1 `powered-by/PoweredBy.test.tsx` (3),
+v1 `Help.test.tsx` (3), `Markdown.Void.brand.test.tsx` (2),
+`CurrentAppInfoProvider.test.tsx` (1).
 
 ### 6.2 Remaining hardcoded doc links — locale JSON (deferred by user decision)
 
