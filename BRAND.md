@@ -236,28 +236,42 @@ If an upstream merge ever produces a conflict in a license/copyright file,
 | **1** | `PoweredBy` (v1 + v2) unified onto env config source; `app:getInfo` emits `brand`; env.example; tests; shared-setup polyfill | **Done** — commit `3d898674a3`, 7+3 tests green, lint clean, sync rehearsal passed. |
 | **2** | `Help.tsx` (v1) + `HelpLite.tsx` (v2): header name + Home/Handbook/License links read from `appInfo.brand` (env keys `APP_BRAND_DOCS_URL`, `APP_BRAND_AGREEMENT_URL`) | **Done** — commit `f033ea17bc`, v1 Help 3/3 + v1 PoweredBy 3/3 + v2 PoweredBy 7/7 green, lint clean. Help menu proof: custom header + links, zero NocoBase/nocobase.com residual. |
 
-### 6.1 Visual proof (slice 1 + 2)
+### 6.1 Visual proof (slices 1 + 2)
+
+**Evidence form:** the user confirmed that DOM-render-then-Playwright-rasterized
+screenshots are acceptable for the screenshot-verification gate, because this
+workspace has no database and no built client dist (a real app boot is infeasible
+here). The screenshot files are regenerated artifacts kept in the working tree
+(not committed) at `brand-shots/*.png`; their content is identical to the
+assertions in the passing unit tests.
 
 With a sample env brand config (`APP_BRAND_TITLE=Acme`, `APP_BRAND_HOMEPAGE_URL`,
 `APP_BRAND_DOCS_URL`, `APP_BRAND_AGREEMENT_URL`), the four user-visible surfaces
-were rendered (DOM-rendered via the component test harness, then rasterized with
-Playwright/chromium, since this workspace has no running app/DB). Each shows the
-custom brand with **no "NocoBase" / "nocobase.com" residual**:
+each show the custom brand with **no "NocoBase" / "nocobase.com" residual**:
 
-| Surface | Renders | Verified by |
-|---|---|---|
-| Footer (PoweredBy) | `Powered by [Acme](https://acme.example.com)` | v2 `PoweredBy.test.tsx` "env-driven brand" + render proof |
-| Help menu header | `Acme` / `v2.1.9` | v1 `Help.test.tsx` "env-driven brand header" + Help-menu proof |
-| Help menu links | Home→acme.example.com, Handbook→docs.acme.example.com, License→acme.example.com/agreement | v1 `Help.test.tsx` |
-| Login page footer | `Powered by Acme` (PoweredBy is reused on the SignIn page) | v2 `PoweredBy.test.tsx` |
-| Browser tab title | `Dashboard - Acme` (already data-driven from System Settings `title`) | no change needed — `document.title` reads system-settings, not a literal |
+| Surface | Renders | Screenshot | Verified by |
+|---|---|---|---|
+| Footer (PoweredBy) | `Powered by [Acme](https://acme.example.com)` | `brand-shots/footer.png` | v2 `PoweredBy.test.tsx` "env-driven brand" |
+| Help menu header + links | `Acme`/`v2.1.9`; Home→acme.example.com, Handbook→docs.acme.example.com, License→acme.example.com/agreement | `brand-shots/help-menu.png` | v1 `Help.test.tsx` "env-driven brand" |
+| Login page footer | `Powered by Acme` (PoweredBy reused on SignIn) | `brand-shots/login.png` | v2 `PoweredBy.test.tsx` |
+| Browser tab title | `Dashboard - Acme` (data-driven from System Settings `title`) | `brand-shots/browser-title.png` | no code change — `document.title` reads system-settings |
 
 **Default fallback** (no env set): footer renders `Powered by
 [NocoBase](https://www.nocobase.com)` and Help menu shows `NocoBase` + the
 nocobase.com default links — the fallback contract is intact (asserted in the
 "no brand override" test cases).
-| **3** | `Markdown.Void.tsx` syntax-reference link → `appInfo.brand.docsUrl` | **Done** — slice 3, Markdown.Void.brand.test.tsx 2/2 green, lint clean. Default + env-override paths verified. |
-| — | Locale `FORMULAJS_DOC_URL` / `MATHJS_DOC_URL` | **Deferred** — i18n keys are frozen by constraint. |
+
+### 6.2 Remaining hardcoded doc links — locale JSON (deferred by user decision)
+
+The only remaining hardcoded `nocobase.com` links in `packages/core/client/src/`
+live inside locale JSON: `FORMULAJS_DOC_URL` and `MATHJS_DOC_URL` (formula/math
+field editor help links) across 17 locale files. **User decision:** the string
+VALUES of these i18n entries are treated as part of the frozen "i18n 键"
+constraint, so they are left untouched. These are niche editor help links rarely
+seen by end users. If a future decision reclassifies the values as mutable,
+they can be resolved at runtime (read `appInfo.brand.docsUrl` first, fall back to
+the locale value) without editing 34 locale entries — keeping the change
+upstream-merge-friendly.
 
 Each slice follows the same loop: converge one exposure point → lint → run its
 tests → commit → run §3 gate. Never batch multiple exposure points in one commit.
