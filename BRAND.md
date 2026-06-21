@@ -19,18 +19,17 @@ plugin-custom-brand → default) so the product can be rebranded without editing
 # The repo ships with `origin` pointing at upstream nocobase itself. Rename it
 # to `upstream`, then add YOUR fork as the new `origin`.
 git remote rename origin upstream
-git remote add origin https://github.com/<your-account>/nocobase.git
+git remote add origin https://github.com/unclejoe/nocobase.git
 
 # Verify
 git remote -v
-# origin    https://github.com/<your-account>/nocobase.git (fetch/push)
+# origin    https://github.com/unclejoe/nocobase.git (fetch/push)
 # upstream  https://github.com/nocobase/nocobase.git       (fetch/push)
 ```
 
-> **Status of this workspace:** the fork does not exist yet and `gh` is not
-> installed, so this step is deferred (see `BRAND_INVENTORY.md` §6). All work so
-> far is on a local `refactor/whitelabel-branding` branch off `origin/main`; nothing
-> has been pushed. Complete §1.1 before first push.
+> **Status of this workspace:** the fork `https://github.com/unclejoe/nocobase.git`
+> was added as `origin` and the original `nocobase/nocobase` remote was renamed
+> to `upstream`. The `refactor/whitelabel-branding` branch is pushed to `origin`.
 
 ### 1.2 Per-sync routine (every time you merge upstream)
 
