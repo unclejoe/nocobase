@@ -73,18 +73,15 @@ brand-specific judgment.
 |---|---|---|---|
 | `packages/core/client-v2/src/components/PoweredBy.tsx` | v2 footer brand resolution (env > plugin > default) | **Low** — the refactor keeps the `brandStyle` block and plugin branch unchanged; it only *adds* an env branch. Upstream edits to unrelated lines auto-merge (proven in §4.1). | Resolve by keeping the env branch; apply upstream's other edits verbatim. |
 | `packages/core/client/src/powered-by/index.tsx` | v1 footer brand resolution | **Low** — same additive pattern. | Same. |
+| `packages/core/client/src/user/Help.tsx` | v1 Help menu header name + Home/Handbook/License links read `appInfo.brand` | **Med** — Help.tsx churns upstream. The refactor keeps the menu structure intact; it only swaps the four literals for `appInfo.brand`-derived values and an additive resolution block. | Keep the brand resolution block (`brandTitle`/`homePageUrl`/`docsUrl`/`agreementUrl`); apply upstream's menu-structure edits verbatim. |
+| `packages/core/client-v2/src/flow/admin-shell/admin-layout/HelpLite.tsx` | v2 Help menu header name + links read `appInfo.brand` | **Med** — same churn as v1 Help. | Same as v1 Help. |
 | `packages/core/client/src/appInfo/CurrentAppInfoProvider.tsx` | v1 `useCurrentAppInfo` type now has optional `brand` field | **Low** — additive optional field. | Keep the `brand?` field; merge upstream's other type changes. |
 | `packages/plugins/@nocobase/plugin-client/src/server/server.ts` | `app:getInfo` now emits a `brand` block from `APP_BRAND_*` env | **Med** — upstream actively edits this handler (the `EXPORT_*` env pattern sits right next to the brand block). Adjacent edits conflict textually (worked example in §4.2). | Keep both blocks; the brand block reads `APP_BRAND_*`, upstream's reads its own var. One-round resolution. |
 | `packages/core/test/setup/client.ts` | Guarded localStorage polyfill for vitest+jsdom | **Low** — upstream rarely edits test setup; the polyfill is a guarded no-op. | If upstream rewrites the setup, re-add the guarded polyfill block (it's self-contained). |
-| `.env.example` | Documents `APP_BRAND_TITLE` / `APP_BRAND_HOMEPAGE_URL` | **Low** — additive section at end of a stable file. | Keep the white-label section; merge upstream's other vars. |
+| `.env.example` | Documents `APP_BRAND_TITLE` / `APP_BRAND_HOMEPAGE_URL` / `APP_BRAND_DOCS_URL` / `APP_BRAND_AGREEMENT_URL` | **Low** — additive section at end of a stable file. | Keep the white-label section; merge upstream's other vars. |
 
 ### Files the refactor does NOT own (leave to upstream)
 
-- `packages/core/client/src/user/Help.tsx` and
-  `packages/core/client-v2/src/flow/admin-shell/admin-layout/HelpLite.tsx` —
-  listed in `BRAND_INVENTORY.md` as future slices (Help menu header name +
-  links). **Not yet refactored in slice 1.** If upstream changes them, merge
-  upstream's version untouched; the Help convergence is a later slice.
 - Locale files (`src/locale/*.json` `FORMULAJS_DOC_URL`, `MATHJS_DOC_URL`) —
   frozen by constraint (i18n keys must not change). Deferred indefinitely.
 - `packages/core/server/src/gateway/index.ts`, `packages/core/cli-v1/src/util.js`
@@ -105,20 +102,27 @@ Every item must pass before the merge is considered done.
      appVersion HTML-escaping.
    - `packages/core/client/src/powered-by/__tests__/PoweredBy.test.tsx` — must be 3/3.
      Covers: default brand, env-brand override, title-only fallback.
+   - `packages/core/client/src/user/__tests__/Help.test.tsx` — must be 3/3.
+     Covers: default NocoBase header + nocobase.com links, env-brand override
+     with zero NocoBase residual, per-link partial fallback.
 3. **Regression spot-check** — run the appInfo provider test that the refactor's
    shared-setup polyfill fixed:
    `packages/core/client/src/appInfo/__tests__/CurrentAppInfoProvider.test.tsx` — 1/1.
 4. **License/copyright invariant** (§5) — `git diff` must contain zero
    LICENSE/copyright-header changes.
-5. **No hardcoded brand regression** — grep the two PoweredBy files for a stray
+5. **No hardcoded brand regression** — grep the brand files for a stray
    literal that bypassed the config:
    ```bash
-   # The only literal 'NocoBase' / 'nocobase.com' allowed is the *default* fallback
+   # The only literal 'NocoBase' / 'nocobase.com' allowed is the *default fallback*
    # inside the resolution chain. Confirm no NEW literals appeared outside it.
-   grep -nE "NocoBase|nocobase\.com" packages/core/client-v2/src/components/PoweredBy.tsx \
-     packages/core/client/src/powered-by/index.tsx
+   grep -nE "NocoBase|nocobase\.com" \
+     packages/core/client-v2/src/components/PoweredBy.tsx \
+     packages/core/client/src/powered-by/index.tsx \
+     packages/core/client/src/user/Help.tsx \
+     packages/core/client-v2/src/flow/admin-shell/admin-layout/HelpLite.tsx
    ```
-   Acceptable: the `homePageUrls` map and the `NocoBase` default-fallback literal.
+   Acceptable: the `homePageUrls` map and the `NocoBase`/`nocobase.com`
+   default-fallback literals inside the brand-resolution expressions.
    Anything else is a regression.
 
 ---
@@ -229,7 +233,7 @@ If an upstream merge ever produces a conflict in a license/copyright file,
 | Slice | Scope | Status |
 |---|---|---|
 | **1** | `PoweredBy` (v1 + v2) unified onto env config source; `app:getInfo` emits `brand`; env.example; tests; shared-setup polyfill | **Done** — commit `3d898674a3`, 7+3 tests green, lint clean, sync rehearsal passed. |
-| 2 | `Help.tsx` (v1) + `HelpLite.tsx` (v2): header name + Home/Handbook/License links read from `appInfo.brand` (new env keys `APP_BRAND_DOCS_URL`, `APP_BRAND_AGREEMENT_URL`) | Planned. Medium conflict risk — keep edits additive (read brand from `appInfo`, leave menu JSX intact). |
+| **2** | `Help.tsx` (v1) + `HelpLite.tsx` (v2): header name + Home/Handbook/License links read from `appInfo.brand` (env keys `APP_BRAND_DOCS_URL`, `APP_BRAND_AGREEMENT_URL`) | **Done** — commit `f033ea17bc`, v1 Help 3/3 + v1 PoweredBy 3/3 + v2 PoweredBy 7/7 green, lint clean. Help menu proof: custom header + links, zero NocoBase/nocobase.com residual. |
 | 3 | `Markdown.Void.tsx` syntax-reference link → `appInfo.brand.docsUrl` | Planned. Low risk. |
 | — | Locale `FORMULAJS_DOC_URL` / `MATHJS_DOC_URL` | **Deferred** — i18n keys are frozen by constraint. |
 
@@ -258,5 +262,7 @@ tests → commit → run §3 gate. Never batch multiple exposure points in one c
 └─────────────────────────────────────┘
 ```
 
-Env keys (slice 1): `APP_BRAND_TITLE`, `APP_BRAND_HOMEPAGE_URL`.
-Future slices add: `APP_BRAND_DOCS_URL`, `APP_BRAND_AGREEMENT_URL`.
+Env keys (slices 1+2): `APP_BRAND_TITLE`, `APP_BRAND_HOMEPAGE_URL`,
+`APP_BRAND_DOCS_URL`, `APP_BRAND_AGREEMENT_URL`.
+Future slice 3 may consume `APP_BRAND_DOCS_URL` in `Markdown.Void.tsx`'s
+syntax-reference link (already wired server-side).
