@@ -469,7 +469,7 @@
 
   <h3>链路说明</h3>
   <ul>
-    <li><strong>LLM 调用节点</strong>：① NL2DSL 意图解析（GLM-4.6，预期延迟 ≤ 4s）；② 结果组织（同模型，≤ 3s）。</li>
+    <li><strong>LLM 调用节点</strong>：① NL2DSL 意图解析（GLM-5.2，预期延迟 ≤ 4s）；② 结果组织（同模型，≤ 3s）。</li>
     <li><strong>工具调用节点</strong>：① 会话登录认证（<code>nb login</code>，一次性，签发会话数据）；② 会话+签名双重鉴权（每次请求）；③ 业务应用平台数据查询/写入（内部 resourceManager）；④ 审批服务（工作流审批节点）；⑤ callback 回传（HTTP POST）。</li>
   </ul>
 
@@ -514,35 +514,35 @@
 
   <h2>5.2 可选模型对比</h2>
   <table class="compact striped">
-    <thead><tr><th>评估维度</th><th>核心指标</th><th>模型 A：GLM-4.6</th><th>模型 B：DeepSeek-V3.2</th><th>模型 C：Qwen3-32B</th></tr></thead>
+    <thead><tr><th>评估维度</th><th>核心指标</th><th>模型 A：GLM-5.2</th><th>模型 B：DeepSeek-V4</th><th>模型 C：Qwen3-Max</th></tr></thead>
     <tbody>
-      <tr><td rowspan="2"><strong>基础信息</strong></td><td>模型名称与版本</td><td>GLM-4.6（智谱）</td><td>DeepSeek-V3.2</td><td>Qwen3-32B（阿里）</td></tr>
-      <tr><td>参数量</td><td>~355B（MoE）</td><td>~671B（MoE，37B 激活）</td><td>32B（Dense）</td></tr>
-      <tr><td rowspan="3"><strong>效果表现</strong></td><td>场景评测集得分（NL2DSL 内部 Golden）</td><td>预期 88%</td><td>预期 90%</td><td>预期 82%</td></tr>
-      <tr><td>上下文窗口</td><td>200K</td><td>128K</td><td>128K</td></tr>
-      <tr><td>长文本/复杂推理能力</td><td>强（深度推理模式）</td><td>极强（推理标杆）</td><td>中上</td></tr>
-      <tr><td rowspan="3"><strong>性能与延迟</strong></td><td>首字延迟 TTFT</td><td>~0.8s</td><td>~1.2s</td><td>~0.5s（本地）</td></tr>
-      <tr><td>端到端吞吐 TPS</td><td>~120 Token/s</td><td>~60 Token/s</td><td>~150 Token/s（本地）</td></tr>
-      <tr><td>并发承载能力</td><td>强（智谱云高并发）</td><td>中（曾限流）</td><td>强（自部署可控）</td></tr>
-      <tr><td rowspan="2"><strong>成本精算</strong></td><td>MaaS API（输入/输出 per 1M Token）</td><td>2 元 / 8 元</td><td>1 元 / 4 元</td><td>本地部署仅算力</td></tr>
-      <tr><td>私有化部署算力成本</td><td>需 8×H20 节点</td><td>需 8×H20 节点</td><td>单卡 H20/H100 可跑</td></tr>
-      <tr><td rowspan="3"><strong>工程与部署</strong></td><td>部署复杂度</td><td>SaaS API / 本地 vLLM</td><td>SaaS API / 本地 vLLM</td><td>本地 vLLM/sglang</td></tr>
-      <tr><td>功能扩展性（Tool/JSON/MCP）</td><td>全支持</td><td>全支持</td><td>全支持</td></tr>
-      <tr><td>微调能力</td><td>全量/LoRA</td><td>全量/LoRA</td><td>全量/LoRA</td></tr>
-      <tr><td rowspan="3"><strong>合规与安全</strong></td><td>数据隐私与安全</td><td>私有化可数据不出境</td><td>私有化可数据不出境</td><td>私有化最佳</td></tr>
-      <tr><td>内容安全与审核</td><td>内置安全</td><td>内置安全</td><td>需自建审核</td></tr>
-      <tr><td>开源协议合规</td><td>MIT（权重）</td><td>MIT（权重）</td><td>Apache 2.0</td></tr>
+      <tr><td rowspan="2"><strong>基础信息</strong></td><td>模型名称与版本</td><td>GLM-5.2（智谱）</td><td>DeepSeek-V4（V4-Pro/V4-Flash）</td><td>Qwen3-Max（阿里，闭源旗舰）</td></tr>
+      <tr><td>参数量</td><td>~355B（MoE）</td><td>未披露（原生多模态 MoE）</td><td>未披露（最大规模旗舰）</td></tr>
+      <tr><td rowspan="3"><strong>效果表现</strong></td><td>场景评测集得分（NL2DSL 内部 Golden）</td><td>预期 89%</td><td>预期 91%</td><td>预期 90%</td></tr>
+      <tr><td>上下文窗口</td><td>200K</td><td>1M（百万级，V4 普惠长上下文）</td><td>256K</td></tr>
+      <tr><td>长文本/复杂推理能力</td><td>强（深度推理模式）</td><td>极强（自反思、代码能力对标 Claude/GPT）</td><td>强（阿里最强旗舰，ArenaHard 95.6）</td></tr>
+      <tr><td rowspan="3"><strong>性能与延迟</strong></td><td>首字延迟 TTFT</td><td>~0.8s</td><td>~1.0s（V4-Flash 更低）</td><td>~0.9s</td></tr>
+      <tr><td>端到端吞吐 TPS</td><td>~120 Token/s</td><td>~100 Token/s</td><td>~110 Token/s</td></tr>
+      <tr><td>并发承载能力</td><td>强（智谱云高并发）</td><td>强（基于昇腾算力，弹性扩容）</td><td>强（阿里云高并发）</td></tr>
+      <tr><td rowspan="2"><strong>成本精算</strong></td><td>MaaS API（输入/输出 per 1M Token）</td><td>2 元 / 8 元</td><td>约 2 元 / 8 元（V4-Flash 更低）</td><td>约 4 元 / 12 元（旗舰溢价）</td></tr>
+      <tr><td>私有化部署算力成本</td><td>需 8×H20 节点</td><td>Elite 版可跑（2×RTX 4090，V4 新特性）</td><td>不支持私有化（闭源 API）</td></tr>
+      <tr><td rowspan="3"><strong>工程与部署</strong></td><td>部署复杂度</td><td>SaaS API / 本地 vLLM</td><td>SaaS API / 本地 Elite 版</td><td>仅 SaaS API</td></tr>
+      <tr><td>功能扩展性（Tool/JSON/MCP）</td><td>全支持</td><td>全支持（自反思调试代码）</td><td>全支持</td></tr>
+      <tr><td>微调能力</td><td>全量/LoRA</td><td>全量/LoRA</td><td>不支持（闭源）</td></tr>
+      <tr><td rowspan="3"><strong>合规与安全</strong></td><td>数据隐私与安全</td><td>私有化可数据不出境</td><td>私有化可数据不出境</td><td>数据走阿里云</td></tr>
+      <tr><td>内容安全与审核</td><td>内置安全</td><td>内置安全</td><td>内置安全</td></tr>
+      <tr><td>开源协议合规</td><td>MIT（权重）</td><td>开源（权重可下载）</td><td>闭源（仅 API）</td></tr>
     </tbody>
   </table>
 
   <h3>选型建议</h3>
   <ul>
-    <li><strong>效果天花板</strong> DeepSeek-V3.2 推理最强，但 API 历史上有过限流波动，且首字延迟偏高，不适合智能体高频心跳场景作为唯一主模型。</li>
-    <li><strong>综合均衡</strong> GLM-4.6 在"效果 + 延迟 + 高并发 + 中文场景 + 私有化"上最均衡，且与本项目（业务应用平台中文开源生态）调性一致，作为主模型。</li>
-    <li><strong>成本/私有化兜底</strong> Qwen3-32B 单卡可部署，是私有化场景与成本熔断降级的首选备用模型。</li>
+    <li><strong>效果天花板</strong> DeepSeek-V4 推理与代码能力最强（自反思、百万上下文），但首字延迟偏高，且 V4 仍为预览版、稳定性待验证，不适合智能体高频心跳场景作为唯一主模型。</li>
+    <li><strong>综合均衡</strong> GLM-5.2 在"效果 + 延迟 + 高并发 + 中文场景 + 私有化 + 开源可微调"上最均衡，且与本项目（业务应用平台中文开源生态）调性一致，作为主模型。</li>
+    <li><strong>成本/高可用兜底</strong> Qwen3-Max 是阿里最强旗舰 API，作为云端 Failover 备用（接口兼容、一键切换）；私有化场景另选开源 Qwen3-235B-A22B 本地部署。</li>
   </ul>
   <div class="callout">
-    <strong>混合架构建议：</strong>采用<strong>大小模型组合</strong>——主链路 NL2DSL 与结果组织用 GLM-4.6（重推理、低并发但质量高）；心跳轮询、简单任务路由、配额校验等高频低复杂度判断用 Qwen3-32B 本地小模型（低延迟、近零成本）；当主模型触发预算熔断，自动整体降级到 Qwen3-32B。
+    <strong>混合架构建议：</strong>采用<strong>大小模型组合</strong>——主链路 NL2DSL 与结果组织用 GLM-5.2（重推理、低并发但质量高）；心跳轮询、简单任务路由、配额校验等高频低复杂度判断用本地小模型（低延迟、近零成本）；当主模型触发预算熔断或断供，自动降级到 Qwen3-Max API（云端）或 Qwen3-235B-A22B（本地）。
   </div>
 
   <h2>5.3 模型最终选型结果与商业决策依据</h2>
@@ -551,17 +551,17 @@
     <tbody>
       <tr>
         <td>主模型</td>
-        <td><strong>GLM-4.6</strong></td>
+        <td><strong>GLM-5.2</strong></td>
         <td>1. NL2DSL 内部 Golden Dataset 评测综合得分最高档；2. 原生 Function Calling + JSON Schema 结构化输出错误率趋近 0；3. 200K 有效上下文，足够装载任务+技能+业务 schema；4. 中文场景与本项目生态契合。</td>
-        <td>流量首选：100% 生产请求默认由 GLM-4.6 处理，实时监控响应延迟与 429。</td>
+        <td>流量首选：100% 生产请求默认由 GLM-5.2 处理，实时监控响应延迟与 429。</td>
         <td>(月预测 Input × 2元/M) + (Output × 8元/M)。按单企业 MAU 日均 500 次任务、Input/Output ≈ 3:1（输入约 2K、输出约 700 Token）测算：约 <strong>2,500 元/企业/月</strong>。</td>
       </tr>
       <tr>
         <td>备用模型</td>
-        <td><strong>Qwen3-32B（私有化）</strong></td>
-        <td>1. 低延迟鲁棒：TTFT ~0.5s，本地部署无断供与限流风险；2. 高性价比：本地部署仅算力成本，约为 GLM-4.6 API 的 20%；3. 接口兼容：OpenAI 兼容 API，Failover 切换工程成本极低；4. Apache 2.0 商用友好。</td>
-        <td>自动 Failover：主模型连续 3 次 429/500、单次超时 ≥ 8s、或触发企业预算熔断时，无缝切至 Qwen3-32B；每 5 分钟健康检查主模型，恢复后自动 Failback。</td>
-        <td>单 H20 节点月公摊（折旧+电费+带宽+运维）约 <strong>800 元/企业/月</strong>，主要作兜底损耗预算。</td>
+        <td><strong>Qwen3-Max（云端 API）</strong></td>
+        <td>1. 效果鲁棒：阿里最强旗舰，长尾复杂任务兜底能力强；2. 接口兼容：OpenAI 兼容 API，Failover 切换工程成本极低；3. 高可用：阿里云高并发承载稳定；4. 私有化兜底另选开源 Qwen3-235B-A22B（Apache 2.0，本地部署）。</td>
+        <td>自动 Failover：主模型连续 3 次 429/500、单次超时 ≥ 8s、或触发企业预算熔断时，无缝切至 Qwen3-Max；每 5 分钟健康检查主模型，恢复后自动 Failback。</td>
+        <td>(灾备承载 Input × 4元/M) + (Output × 12元/M)。按灾备承载约 10% 流量测算：约 <strong>300 元/企业/月</strong>。私有化 Qwen3-235B-A22B 单节点月公摊约 800 元（折旧+电费+带宽+运维）。</td>
       </tr>
     </tbody>
   </table>
@@ -569,8 +569,8 @@
     <div class="takeaway-label">成本注意事项</div>
     <ol>
       <li><strong>输入/输出 Token 比例陷阱：</strong>本场景属"中输入中输出"，必须按 3:1 比例精算，不能用均价估算。</li>
-      <li><strong>Failover 状态恢复：</strong>切到 Qwen3-32B 后，每 5 分钟探活主模型，恢复自动回切，防止体验慢性降级。</li>
-      <li><strong>私有化隐藏成本：</strong>须把"显卡折旧 + 机房电费带宽 + 专职运维"折算进公摊，不能只看电费。</li>
+      <li><strong>Failover 状态恢复：</strong>切到 Qwen3-Max 后，每 5 分钟探活主模型，恢复自动回切，防止体验慢性降级。</li>
+      <li><strong>私有化隐藏成本：</strong>私有化兜底用开源 Qwen3-235B-A22B，须把"显卡折旧 + 机房电费带宽 + 专职运维"折算进公摊，不能只看电费。Qwen3-Max 为闭源 API，不支持私有化。</li>
     </ol>
   </div>
 </section>
@@ -631,13 +631,13 @@
     <thead><tr><th>策略维度</th><th>采用</th><th>工程配置规范</th></tr></thead>
     <tbody>
       <tr><td>Few-shot 示例策略</td><td>是</td><td>静态注入 4 个 Hardcoded 示例（含 1 越权负例 + 1 out-of-domain 负例），覆盖 query/update/delete/aggregate 四类 action。</td></tr>
-      <tr><td>思维链（CoT）</td><td>是</td><td>显式要求按 WORKFLOW 四步推理；调用 GLM-4.6 时关闭其自带 Thought Chain 对外输出（仅内部推理），平衡 Token 成本。</td></tr>
+      <tr><td>思维链（CoT）</td><td>是</td><td>显式要求按 WORKFLOW 四步推理；调用 GLM-5.2 时关闭其自带 Thought Chain 对外输出（仅内部推理），平衡 Token 成本。</td></tr>
       <tr><td>结构化输出约束</td><td>是</td><td>双重约束——Prompt 内给 JSON Schema + API 层绑定 response_format 强约束（GLM tools / JSON mode），确保 100% 可解析。</td></tr>
       <tr><td>多步骤链式/图拓扑</td><td>是</td><td>DAG 拓扑——NL2DSL 解析节点 →（路由）→ 读分支 / 写分支（含审批）→ 结果组织节点。</td></tr>
       <tr><td>角色与边界设定</td><td>是</td><td>定义"翻译官"角色与三条红线（不虚构、不越权、不绕审批），防 Prompt Injection。</td></tr>
       <tr><td>上下文精简与检索</td><td>是</td><td>KNOWN SCHEMA 按智能体 ACL 动态裁剪，仅注入可见 collection；超长时按字段使用频次 Rerank 后截断到 4K Token 以内。</td></tr>
       <tr><td>知识库注入</td><td>是</td><td>业务 schema 作为动态知识注入 KNOWN SCHEMA 段，标注置信度；模型只能在 schema 内映射，超出即 forbidden。</td></tr>
-      <tr><td>后处理与兜底</td><td>是</td><td>JSON 解析失败 → 带错误上下文重试 ≤2 次 → 仍失败标记 task failed 并回传；连续失败触发模型 Failover 至 Qwen3-32B。</td></tr>
+      <tr><td>后处理与兜底</td><td>是</td><td>JSON 解析失败 → 带错误上下文重试 ≤2 次 → 仍失败标记 task failed 并回传；连续失败触发模型 Failover 至 Qwen3-Max。</td></tr>
       <tr><td>提示词版本控制</td><td>是</td><td>Prompt 随插件代码 Git 管理，版本号与插件 release 对齐（v1.0.0）。</td></tr>
     </tbody>
   </table>
@@ -647,8 +647,8 @@
   <table class="compact">
     <thead><tr><th>版本号</th><th>变更类型</th><th>核心变更说明</th><th>关联模型</th><th>离线评测得分</th><th>线上发布策略</th><th>线上核心监控指标</th></tr></thead>
     <tbody>
-      <tr><td>v1.0.0</td><td>初始上线</td><td>基础 NL2DSL 角色、KNOWN SCHEMA 注入、JSON Schema 输出约束上线。</td><td>GLM-4.6</td><td>综合 88 分；格式正确率 99.6%；意图准确率 87%；越权拦截率 100%</td><td>内部白名单 24h → 灰度 10% → 全量</td><td>API 平均延迟 3.2s；任务自动完成率 62%</td></tr>
-      <tr><td>v1.1.0</td><td>策略优化</td><td>新增 4 个 Few-shot（含 2 负例），优化 aggregate 场景 CoT；KNOWN SCHEMA 动态裁剪。</td><td>GLM-4.6</td><td>综合 91 分（Token 降 18%）；aggregate 准确率 +6%</td><td>灰度 10%（按企业租户切流）</td><td>灰度组延迟 2.8s；幻觉率较 v1.0 降 22%</td></tr>
+      <tr><td>v1.0.0</td><td>初始上线</td><td>基础 NL2DSL 角色、KNOWN SCHEMA 注入、JSON Schema 输出约束上线。</td><td>GLM-5.2</td><td>综合 88 分；格式正确率 99.6%；意图准确率 87%；越权拦截率 100%</td><td>内部白名单 24h → 灰度 10% → 全量</td><td>API 平均延迟 3.2s；任务自动完成率 62%</td></tr>
+      <tr><td>v1.1.0</td><td>策略优化</td><td>新增 4 个 Few-shot（含 2 负例），优化 aggregate 场景 CoT；KNOWN SCHEMA 动态裁剪。</td><td>GLM-5.2</td><td>综合 91 分（Token 降 18%）；aggregate 准确率 +6%</td><td>灰度 10%（按企业租户切流）</td><td>灰度组延迟 2.8s；幻觉率较 v1.0 降 22%</td></tr>
     </tbody>
   </table>
 </section>
@@ -692,7 +692,7 @@
       <tr><td><strong>显性反馈</strong></td><td>Bad Case（审批驳回、智能体回传"指令错误"）、Good Case（任务一次成功）。</td><td>1. 业务应用平台审计页 👍/👎 按钮（点踩强制选原因）；2. 智能体编排控制面侧智能体回传质量信号。</td><td>Bad Case 由 PM 写出正确指令转 Chosen/Rejected 对；Good Case 标 100 分入库。</td></tr>
       <tr><td><strong>业务专家与种子用户</strong></td><td>深水区业务 schema、复杂多表聚合 SOP。</td><td>1. 冷启动：组织业务应用平台业务专家"任务众包"；2. 内部标注页打分修改。</td><td>专家校对数据以最高权重录入"核心基础能力评测集"，新模型上线必须 100% 通过。</td></tr>
       <tr><td><strong>对抗式红蓝演练</strong></td><td>Prompt 注入、越权诱导、伪造高危降级。</td><td>1. 用 Promptfoo/Garak 自动化注入攻击；2. 内部"找茬黑客松"。</td><td>攻击 Prompt 入库"安全防御专项评测集"，拒答率未达 100% 一票否决。</td></tr>
-      <tr><td><strong>合成数据与变体</strong></td><td>高频任务的语义变体。</td><td>LLM-as-a-Generator：用 GLM-4.6 对真实 Case 生成 10 个同义变体。</td><td>合成数据占比 ≤30%，PM 抽检防二次幻觉。</td></tr>
+      <tr><td><strong>合成数据与变体</strong></td><td>高频任务的语义变体。</td><td>LLM-as-a-Generator：用 GLM-5.2 对真实 Case 生成 10 个同义变体。</td><td>合成数据占比 ≤30%，PM 抽检防二次幻觉。</td></tr>
     </tbody>
   </table>
   <div class="callout"><strong>自动化 Pipeline：</strong>"线上点踩/审批驳回 → 自动打标留存 → 运营每周初筛 → PM/专家终审写出正确指令 → 一键合入 Git 评测集 eval_vX.X → 触发 CI/CD 自动化跑分。" 数据存储格式：JSON（ChatML）。</div>
@@ -756,7 +756,7 @@
       <tr><td><strong>业务知识边界</strong></td><td>严格限定于该智能体 ACL 可见的业务应用平台 collection；拒绝 out-of-domain 闲聊。</td><td>审计页/智能体配置页声明"本智能体仅可操作以下业务对象：…"。</td><td>KNOWN SCHEMA 未命中 → 输出 <code>rejected: out_of_domain</code>，并附 2-3 个高频任务建议。</td></tr>
       <tr><td><strong>时效性边界</strong></td><td>业务应用平台数据为业务库实时快照，但 LLM 知识有截止点；不接全网实时检索。</td><td>审计页标注"业务数据实时，AI 推理知识截止 {日期}"。</td><td>任务含强时效全网词且无业务数据支撑 → 免责兜底 + 引导查业务应用平台报表。</td></tr>
       <tr><td><strong>法律与免责边界</strong></td><td>AI 生成的业务操作指令非最终决策，高危写操作必须人工审批。</td><td>审批节点常驻"AI 生成指令仅供参考，需人工确认后方可执行"。</td><td>risk_level=high → 强制插入审批节点 + 【一键召出人工复核】按钮（HITL）。</td></tr>
-      <tr><td><strong>性能与容量边界</strong></td><td>单任务输入 ≤ 50K 字符；单智能体并发任务 ≤ 预算配额。</td><td>配置页配额计数器；超限 Toast 提示。</td><td>超输入上限禁止提交；超配额自动降级切 Qwen3-32B 或暂停并通知。</td></tr>
+      <tr><td><strong>性能与容量边界</strong></td><td>单任务输入 ≤ 50K 字符；单智能体并发任务 ≤ 预算配额。</td><td>配置页配额计数器；超限 Toast 提示。</td><td>超输入上限禁止提交；超配额自动降级切 Qwen3-Max 或暂停并通知。</td></tr>
     </tbody>
   </table>
 
@@ -791,11 +791,11 @@
     <tbody>
       <tr><td>1</td><td>模型质量</td><td>字段幻觉（Field Hallucination）</td><td>NL2DSL 虚构 KNOWN SCHEMA 外的 collection/field，导致工作流查询错数据。</td><td><span class="tag">极高</span></td><td>KNOWN SCHEMA 强约束 + 输出后处理比对字段存在性 + Faithfulness 评测设幻觉率红线。</td></tr>
       <tr><td>2</td><td>模型质量</td><td>风险评级静默退化</td><td>模型把高危 delete/批量写误判 low 绕过审批。</td><td><span class="tag">极高</span></td><td>risk_level 独立后处理规则复核（delete/批量=high 硬编码）；评级准确率纳入一票否决。</td></tr>
-      <tr><td>3</td><td>模型质量</td><td>效果静默退化（Model Drift）</td><td>GLM-4.6 供应商静默升级导致线上效果下滑。</td><td><span class="tag">高</span></td><td>每月 Golden Dataset 全量跑分预警；API 层记录模型版本号；合同约定版本变更通知。</td></tr>
-      <tr><td>4</td><td>稳定性</td><td>主模型断供（Failover 失效）</td><td>GLM-4.6 API 限流/中断，Failover 不及时致服务不可用。</td><td><span class="tag">极高</span></td><td>Qwen3-32B 私有化备用一键切换；每 5 分钟健康检查；Failback 自动回切。</td></tr>
+      <tr><td>3</td><td>模型质量</td><td>效果静默退化（Model Drift）</td><td>GLM-5.2 供应商静默升级导致线上效果下滑。</td><td><span class="tag">高</span></td><td>每月 Golden Dataset 全量跑分预警；API 层记录模型版本号；合同约定版本变更通知。</td></tr>
+      <tr><td>4</td><td>稳定性</td><td>主模型断供（Failover 失效）</td><td>GLM-5.2 API 限流/中断，Failover 不及时致服务不可用。</td><td><span class="tag">极高</span></td><td>Qwen3-Max 云端 API 一键切换；私有化场景用开源 Qwen3-235B-A22B 本地兜底；每 5 分钟健康检查；Failback 自动回切。</td></tr>
       <tr><td>5</td><td>成本</td><td>Token 用量失控</td><td>智能体高频心跳 + Prompt 注入超长输入致月账单超预算。</td><td><span class="tag">高</span></td><td>前端 + 后端双重输入字数硬限；单 agent/goal 日预算上限，超限降级或暂停；云账单 80% 预警；审计 Top10 高耗用户。</td></tr>
       <tr><td>6</td><td>合规法律</td><td>越权操作业务数据</td><td>智能体被诱导执行 ACL 外的 delete/drop，造成业务数据损失。</td><td><span class="tag">极高</span></td><td>输出层 ACL 二次校验；高危动作强制审批；越权拦截率=100% 纳入全量上线红线；操作走业务应用平台审计日志可追溯。</td></tr>
-      <tr><td>7</td><td>数据安全</td><td>业务数据泄露至第三方模型</td><td>企业订单/客户数据经 MaaS API 被用于训练。</td><td><span class="tag">高</span></td><td>合同约定"数据不用于训练"+ SOC2 证明；高敏数据传入前脱敏；提供私有化部署（Qwen3-32B）兜底。</td></tr>
+      <tr><td>7</td><td>数据安全</td><td>业务数据泄露至第三方模型</td><td>企业订单/客户数据经 MaaS API 被用于训练。</td><td><span class="tag">高</span></td><td>合同约定"数据不用于训练"+ SOC2 证明；高敏数据传入前脱敏；提供私有化部署（开源 Qwen3-235B-A22B）兜底。</td></tr>
       <tr><td>8</td><td>安全攻击</td><td>Prompt 注入与越狱</td><td>恶意智能体/用户诱导泄露 System Prompt 或绕 ACL。</td><td><span class="tag">高</span></td><td>System Prompt <code># SAFETY</code> 模块；Promptfoo/Garak 红蓝对抗；越狱成功率一票否决；输入层轻量恶意检测。</td></tr>
       <tr><td>9</td><td>安全攻击</td><td>会话劫持 / 会话密钥泄露</td><td>会话密钥（session_key）被窃取后，攻击者可伪造合法签名冒充该 agent 调用业务接口，绕过登录门槛。</td><td><span class="tag">高</span></td><td>会话密钥仅客户端本地保密存储、不明文传输；签名密钥用 session_key 而非静态 secret（重登即轮换）；会话设短过期时间（默认 8h）；<code>nb logout</code> 一键吊销；网关侧异常调用频次/IP 漂移检测自动冻结可疑会话。</td></tr>
       <tr><td>10</td><td>体验</td><td>任务延迟超容忍阈值</td><td>多智能体并发致推理 &gt;10s，影响心跳与 Goal 推进。</td><td><span class="tag">中</span></td><td>端到端 SLA ≤10s 告警；进度条/骨架屏；大促前扩容；超时转异步队列 + 回调通知。</td></tr>
@@ -821,7 +821,7 @@
   <table class="compact striped">
     <thead><tr><th>术语</th><th>定义</th></tr></thead>
     <tbody>
-      <tr><td>DAN.AI</td><td>本产品名称，业务应用平台与智能体编排控制面之间的智能体业务执行桥。</td></tr>
+      <tr><td>DAN.AI</td><td>本产品名称，业务应用平台与智能体编排控制面之间的智能体业务执行层。</td></tr>
       <tr><td>会话登录（nb login）</td><td>业务前置认证：用户在智能体编排控制面内通过命令行工具 <code>nb login</code> 登录业务应用平台，换取后续业务操作的身份凭证。</td></tr>
       <tr><td>session_id / session_key</td><td>会话唯一标识 / 会话密钥：登录后签发，session_id 随请求明文传递，session_key 仅本地保密存储并用作请求 HMAC 签名密钥。</td></tr>
       <tr><td>业务应用平台</td><td>开源低代码业务应用搭建平台，提供数据建模、工作流、审批、ACL 与审计能力（DAN.AI 的业务执行底座）。</td></tr>
