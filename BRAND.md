@@ -234,6 +234,27 @@ If an upstream merge ever produces a conflict in a license/copyright file,
 |---|---|---|
 | **1** | `PoweredBy` (v1 + v2) unified onto env config source; `app:getInfo` emits `brand`; env.example; tests; shared-setup polyfill | **Done** — commit `3d898674a3`, 7+3 tests green, lint clean, sync rehearsal passed. |
 | **2** | `Help.tsx` (v1) + `HelpLite.tsx` (v2): header name + Home/Handbook/License links read from `appInfo.brand` (env keys `APP_BRAND_DOCS_URL`, `APP_BRAND_AGREEMENT_URL`) | **Done** — commit `f033ea17bc`, v1 Help 3/3 + v1 PoweredBy 3/3 + v2 PoweredBy 7/7 green, lint clean. Help menu proof: custom header + links, zero NocoBase/nocobase.com residual. |
+
+### 6.1 Visual proof (slice 1 + 2)
+
+With a sample env brand config (`APP_BRAND_TITLE=Acme`, `APP_BRAND_HOMEPAGE_URL`,
+`APP_BRAND_DOCS_URL`, `APP_BRAND_AGREEMENT_URL`), the four user-visible surfaces
+were rendered (DOM-rendered via the component test harness, then rasterized with
+Playwright/chromium, since this workspace has no running app/DB). Each shows the
+custom brand with **no "NocoBase" / "nocobase.com" residual**:
+
+| Surface | Renders | Verified by |
+|---|---|---|
+| Footer (PoweredBy) | `Powered by [Acme](https://acme.example.com)` | v2 `PoweredBy.test.tsx` "env-driven brand" + render proof |
+| Help menu header | `Acme` / `v2.1.9` | v1 `Help.test.tsx` "env-driven brand header" + Help-menu proof |
+| Help menu links | Home→acme.example.com, Handbook→docs.acme.example.com, License→acme.example.com/agreement | v1 `Help.test.tsx` |
+| Login page footer | `Powered by Acme` (PoweredBy is reused on the SignIn page) | v2 `PoweredBy.test.tsx` |
+| Browser tab title | `Dashboard - Acme` (already data-driven from System Settings `title`) | no change needed — `document.title` reads system-settings, not a literal |
+
+**Default fallback** (no env set): footer renders `Powered by
+[NocoBase](https://www.nocobase.com)` and Help menu shows `NocoBase` + the
+nocobase.com default links — the fallback contract is intact (asserted in the
+"no brand override" test cases).
 | 3 | `Markdown.Void.tsx` syntax-reference link → `appInfo.brand.docsUrl` | Planned. Low risk. |
 | — | Locale `FORMULAJS_DOC_URL` / `MATHJS_DOC_URL` | **Deferred** — i18n keys are frozen by constraint. |
 
