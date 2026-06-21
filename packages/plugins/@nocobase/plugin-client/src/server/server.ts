@@ -113,10 +113,14 @@ export class PluginClientServer extends Plugin {
           // back to their built-in defaults for anything absent. See BRAND_INVENTORY.md §1.
           const brandTitle = process.env['APP_BRAND_TITLE'];
           const brandHomepageUrl = process.env['APP_BRAND_HOMEPAGE_URL'];
-          if (brandTitle || brandHomepageUrl) {
+          const brandDocsUrl = process.env['APP_BRAND_DOCS_URL'];
+          const brandAgreementUrl = process.env['APP_BRAND_AGREEMENT_URL'];
+          if (brandTitle || brandHomepageUrl || brandDocsUrl || brandAgreementUrl) {
             info.brand = {
               ...(brandTitle ? { title: brandTitle } : {}),
               ...(brandHomepageUrl ? { homepageUrl: brandHomepageUrl } : {}),
+              ...(brandDocsUrl ? { docsUrl: brandDocsUrl } : {}),
+              ...(brandAgreementUrl ? { agreementUrl: brandAgreementUrl } : {}),
             };
           }
 

@@ -26,6 +26,8 @@ export const useCurrentAppInfo = () => {
       brand?: {
         title?: string;
         homepageUrl?: string;
+        docsUrl?: string;
+        agreementUrl?: string;
       };
     };
   }>(CurrentAppInfoContext);
