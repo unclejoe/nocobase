@@ -1,0 +1,22 @@
+{
+  "Audit logs": "审计日志",
+  "Audit logger": "审计日志",
+  "Request-level audit logging": "请求级审计日志",
+  "Resource": "资源",
+  "Action": "操作",
+  "User ID": "用户 ID",
+  "Role": "角色",
+  "IP": "IP",
+  "User agent": "用户代理",
+  "Status": "状态",
+  "Created at": "创建时间",
+  "Request source": "请求来源",
+  "Source collection": "来源数据表",
+  "Target collection": "目标数据表",
+  "Metadata": "元数据",
+  "UUID": "UUID",
+  "Refresh": "刷新",
+  "View": "查看",
+  "Log detail": "日志详情",
+  "Data source": "数据源"
+}

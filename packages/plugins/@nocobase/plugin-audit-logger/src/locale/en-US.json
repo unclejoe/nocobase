@@ -1,0 +1,22 @@
+{
+  "Audit logs": "Audit logs",
+  "Audit logger": "Audit logger",
+  "Request-level audit logging": "Request-level audit logging",
+  "Resource": "Resource",
+  "Action": "Action",
+  "User ID": "User ID",
+  "Role": "Role",
+  "IP": "IP",
+  "User agent": "User agent",
+  "Status": "Status",
+  "Created at": "Created at",
+  "Request source": "Request source",
+  "Source collection": "Source collection",
+  "Target collection": "Target collection",
+  "Metadata": "Metadata",
+  "UUID": "UUID",
+  "Refresh": "Refresh",
+  "View": "View",
+  "Log detail": "Log detail",
+  "Data source": "Data source"
+}
