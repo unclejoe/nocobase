@@ -17,6 +17,7 @@ import cls from 'classnames';
 import { isEqual } from 'lodash';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useCurrentAppInfo } from '../../../appInfo/CurrentAppInfoProvider';
 import { useCollectionRecord } from '../../../data-source';
 import { FlagProvider, useFlag } from '../../../flag-provider';
 import { useGlobalTheme } from '@nocobase/client-v2';
@@ -40,9 +41,17 @@ export interface MarkdownEditorProps extends Omit<TextAreaProps, 'onSubmit'> {
   onCancel?: (e: React.MouseEvent) => void;
 }
 
-const MarkdownEditor = (props: MarkdownEditorProps) => {
+export const MarkdownEditor = (props: MarkdownEditorProps) => {
   const { scope } = props;
   const { t, i18n } = useTranslation();
+  const appInfo = useCurrentAppInfo();
+  // Brand resolution (see BRAND_INVENTORY.md §1): env-driven docs URL wins;
+  // otherwise the locale-aware nocobase.com default. An operator-provided URL
+  // overrides both locales. useCurrentAppInfo() returns { data: {...} } in v1.
+  const brand = appInfo?.data?.brand;
+  const docsUrl =
+    brand?.docsUrl ||
+    `https://${i18n.language === 'zh-CN' ? 'docs-cn' : 'docs'}.nocobase.com/handbook/template-handlebars`;
   const [value, setValue] = useState(props.defaultValue);
   const inputRef = useRef<TextAreaRef>(null);
   const [options, setOptions] = useState([]);
@@ -93,11 +102,7 @@ const MarkdownEditor = (props: MarkdownEditorProps) => {
           {t('Syntax references')}:
         </span>
 
-        <a
-          href={`https://${i18n.language === 'zh-CN' ? 'docs-cn' : 'docs'}.nocobase.com/handbook/template-handlebars`}
-          target="_blank"
-          rel="noreferrer"
-        >
+        <a href={docsUrl} target="_blank" rel="noreferrer">
           Handlebars.js
         </a>
       </>

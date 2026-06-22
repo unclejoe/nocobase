@@ -23,6 +23,12 @@ export const useCurrentAppInfo = () => {
       version: string;
       exportLimit?: number;
       name: string;
+      brand?: {
+        title?: string;
+        homepageUrl?: string;
+        docsUrl?: string;
+        agreementUrl?: string;
+      };
     };
   }>(CurrentAppInfoContext);
 };

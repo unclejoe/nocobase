@@ -13,6 +13,35 @@ import path from 'path';
 configure({ asyncUtilTimeout: 30000 });
 dotenv.config({ path: path.resolve(process.cwd(), '.env.test') });
 
+// Some vitest + jsdom combinations expose `window.localStorage` /
+// `window.sessionStorage` as empty objects whose `getItem` is undefined, which
+// breaks the SDK Storage layer (and therefore any component that issues API
+// requests through the authenticated client). Provide a minimal in-memory
+// polyfill; this is a no-op when jsdom already provides a working Storage.
+if (typeof window !== 'undefined' && typeof window.localStorage?.getItem !== 'function') {
+  const createPolyfill = () => {
+    const store: Record<string, string> = {};
+    return {
+      getItem: (key: string) => (key in store ? store[key] : null),
+      setItem: (key: string, value: string) => {
+        store[key] = String(value);
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
+      clear: () => {
+        for (const key of Object.keys(store)) delete store[key];
+      },
+      key: (index: number) => Object.keys(store)[index] ?? null,
+      get length() {
+        return Object.keys(store).length;
+      },
+    };
+  };
+  Object.defineProperty(window, 'localStorage', { value: createPolyfill(), configurable: true, writable: true });
+  Object.defineProperty(window, 'sessionStorage', { value: createPolyfill(), configurable: true, writable: true });
+}
+
 // 解决 TypeError: window.matchMedia is not a function
 // 参见： https://github.com/vitest-dev/vitest/issues/821#issuecomment-1046954558
 Object.defineProperty(window, 'matchMedia', {

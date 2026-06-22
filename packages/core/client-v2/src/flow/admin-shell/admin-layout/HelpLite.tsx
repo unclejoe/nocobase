@@ -38,6 +38,20 @@ const SettingsMenu: React.FC = () => {
   const { token } = antdTheme.useToken();
   const isSimplifiedChinese = appInfo?.lang === 'zh-CN';
 
+  // Brand resolution (see BRAND_INVENTORY.md §1): env-driven brand (set via
+  // APP_BRAND_* env vars, surfaced through app:getInfo) wins; otherwise the
+  // hardcoded NocoBase defaults. An operator-provided URL overrides both locales.
+  const brand = appInfo?.brand;
+  const brandTitle = brand?.title || 'NocoBase';
+  const homePageUrl =
+    brand?.homepageUrl || (isSimplifiedChinese ? 'https://www.nocobase.com/cn/' : 'https://www.nocobase.com');
+  const docsUrl =
+    brand?.docsUrl ||
+    (isSimplifiedChinese ? 'https://docs.nocobase.com/cn/guide/' : 'https://docs.nocobase.com/guide/');
+  const agreementUrl =
+    brand?.agreementUrl ||
+    (isSimplifiedChinese ? 'https://www.nocobase.com/cn/agreement' : 'https://www.nocobase.com/en/agreement');
+
   const items: SettingsMenuItemType[] = useMemo(
     () => [
       {
@@ -45,7 +59,7 @@ const SettingsMenu: React.FC = () => {
         disabled: true,
         label: (
           <div style={{ cursor: 'text' }}>
-            <div style={{ color: token.colorText }}>NocoBase</div>
+            <div style={{ color: token.colorText }}>{brandTitle}</div>
             <div style={{ fontSize: '0.8em', color: token.colorTextDescription }}>v{appInfo?.version}</div>
           </div>
         ),
@@ -57,11 +71,7 @@ const SettingsMenu: React.FC = () => {
       {
         key: 'homePage',
         label: (
-          <a
-            href={isSimplifiedChinese ? 'https://www.nocobase.com/cn/' : 'https://www.nocobase.com'}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a href={homePageUrl} target="_blank" rel="noreferrer">
             {t('Home page')}
           </a>
         ),
@@ -69,11 +79,7 @@ const SettingsMenu: React.FC = () => {
       {
         key: 'userManual',
         label: (
-          <a
-            href={isSimplifiedChinese ? 'https://docs.nocobase.com/cn/guide/' : 'https://docs.nocobase.com/guide/'}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a href={docsUrl} target="_blank" rel="noreferrer">
             {t('Handbook')}
           </a>
         ),
@@ -81,19 +87,13 @@ const SettingsMenu: React.FC = () => {
       {
         key: 'license',
         label: (
-          <a
-            href={
-              isSimplifiedChinese ? 'https://www.nocobase.com/cn/agreement' : 'https://www.nocobase.com/en/agreement'
-            }
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a href={agreementUrl} target="_blank" rel="noreferrer">
             {t('License')}
           </a>
         ),
       },
     ],
-    [appInfo?.version, isSimplifiedChinese, t, token.colorText, token.colorTextDescription],
+    [appInfo?.version, brandTitle, homePageUrl, docsUrl, agreementUrl, t, token.colorText, token.colorTextDescription],
   );
 
   return <Menu items={items} />;
