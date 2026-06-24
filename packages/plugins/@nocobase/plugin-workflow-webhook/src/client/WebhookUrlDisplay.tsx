@@ -18,7 +18,11 @@ export function WebhookUrlDisplay() {
   const { workflow } = useFlowContext() ?? {};
   const workflowKey = workflow?.key;
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const url = workflowKey ? `${origin}/api/webhooks/${workflowKey}:trigger` : '';
+  // Keep in sync with the server route in WebhookTrigger.ts: the webhook resource is
+  // registered via `resourceManager.define({ name: 'webhooks', actions: { trigger } })`,
+  // which NocoBase serves at `/api/webhooks:trigger`. The workflow key is passed as a
+  // path segment and mapped to `ctx.action.params.filterByTk` by the resourcemanager.
+  const url = workflowKey ? `${origin}/api/webhooks:trigger/${workflowKey}` : '';
 
   if (!url) {
     return null;

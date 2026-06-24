@@ -17,5 +17,7 @@
   "HTTP method not allowed": "HTTP method not allowed",
   "Invalid webhook secret": "Invalid webhook secret",
   "Webhook received": "Webhook received",
-  "Use JSON as trigger data for testing.": "Use JSON as trigger data for testing."
+  "Use JSON as trigger data for testing.": "Use JSON as trigger data for testing.",
+  "Request body sample": "Request body sample",
+  "Paste a JSON sample of the request body. Fields are parsed automatically and become selectable as trigger variables.": "Paste a JSON sample of the request body. Fields are parsed automatically and become selectable as trigger variables."
 }

@@ -17,5 +17,7 @@
   "HTTP method not allowed": "HTTP 方法不允许",
   "Invalid webhook secret": "Webhook 密钥无效",
   "Webhook received": "Webhook 已接收",
-  "Use JSON as trigger data for testing.": "使用 JSON 作为测试触发数据。"
+  "Use JSON as trigger data for testing.": "使用 JSON 作为测试触发数据。",
+  "Request body sample": "请求体样例",
+  "Paste a JSON sample of the request body. Fields are parsed automatically and become selectable as trigger variables.": "粘贴请求体的 JSON 样例，字段会自动解析并成为可在节点中选择的触发器变量。"
 }

@@ -11,24 +11,46 @@ import { Trigger, WorkflowVariableJSON } from '@nocobase/plugin-workflow/client'
 import { NAMESPACE, HTTP_METHODS, HTTP_METHOD_OPTIONS } from '../common/constants';
 import { lang } from './locale';
 import { WebhookUrlDisplay } from './WebhookUrlDisplay';
+import { jsonToVariableOptions, type VariableOption } from './jsonToVariableOptions';
 
-function useVariables(config, options) {
+function useVariables(config) {
+  // Parse the `bodySchema` JSON sample on demand (no separate stored field, no
+  // render-time mutation). When a valid sample is present, `data` becomes an
+  // expandable branch so node field-assignment pickers can drill into
+  // `$trigger.data.amount` etc.; otherwise `data` is a leaf exposing the whole
+  // body object (backward compatible).
+  let bodyChildren: VariableOption[] | null = null;
+  if (config?.bodySchema) {
+    try {
+      const parsed = typeof config.bodySchema === 'string' ? JSON.parse(config.bodySchema) : config.bodySchema;
+      const options = jsonToVariableOptions(parsed);
+      bodyChildren = options.length ? options : null;
+    } catch {
+      // invalid JSON — leave bodyChildren null (leaf)
+    }
+  }
+
   return [
     {
       label: lang('Trigger data'),
       value: 'data',
+      isLeaf: !bodyChildren,
+      children: bodyChildren,
     },
     {
       label: lang('Request headers'),
       value: 'headers',
+      isLeaf: true,
     },
     {
       label: lang('Request query'),
       value: 'query',
+      isLeaf: true,
     },
     {
       label: lang('Request method'),
       value: 'method',
+      isLeaf: true,
     },
   ];
 }
@@ -55,6 +77,17 @@ export default class extends Trigger {
       },
       default: ['POST'],
       required: true,
+    },
+    bodySchema: {
+      type: 'string',
+      title: `{{t("Request body sample", { ns: "${NAMESPACE}" })}}`,
+      description: `{{t("Paste a JSON sample of the request body. Fields are parsed automatically and become selectable as trigger variables.", { ns: "${NAMESPACE}" })}}`,
+      'x-decorator': 'FormItem',
+      'x-component': 'Input.JSON',
+      'x-component-props': {
+        autoSize: { minRows: 4, maxRows: 12 },
+      },
+      default: null,
     },
     secret: {
       type: 'string',
