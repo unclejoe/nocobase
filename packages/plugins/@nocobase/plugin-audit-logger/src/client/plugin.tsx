@@ -16,14 +16,19 @@
  * For more information, please refer to: https://www.nocobase.com/agreement.
  */
 
-import { Plugin } from '@nocobase/client';
+import { Plugin, lazy } from '@nocobase/client';
+import { NAMESPACE } from '../constants';
 
-// No-op v1 plugin. The audit log viewer is implemented entirely in the v2
-// client runtime (src/client-v2). This stub only satisfies the v1 loader so
-// app boot does not abort on a missing `client` entry.
+const { AuditLogsConfiguration } = lazy(() => import('./Configuration'), 'AuditLogsConfiguration');
+
 export class PluginAuditLoggerClient extends Plugin {
   async load() {
-    // intentionally empty — feature lives in client-v2
+    this.pluginSettingsManager.add('audit-logger', {
+      icon: 'FileTextOutlined',
+      title: `{{t("Audit logs", { ns: "${NAMESPACE}" })}}`,
+      Component: AuditLogsConfiguration,
+      aclSnippet: 'pm.audit-logger.logs',
+    });
   }
 }
 

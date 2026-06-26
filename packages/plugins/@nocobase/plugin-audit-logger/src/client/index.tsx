@@ -16,9 +16,9 @@
  * For more information, please refer to: https://www.nocobase.com/agreement.
  */
 
-// The audit log UI is built on the v2 client runtime (@nocobase/client-v2);
-// see src/client-v2/. This v1 entry is a no-op stub that exists only so the
-// legacy v1 client loader (which resolves every enabled plugin's `client`
-// entry from /static/plugins/<name>/dist/client/index.js) does not 404 and
-// abort app boot. The real feature surface lives entirely in client-v2.
+// The primary audit log viewer is built on the v2 client runtime
+// (@nocobase/client-v2); see src/client-v2/. This v1 entry registers a
+// read-only viewer in the legacy settings UI so the feature is reachable from
+// the v1 client too. Both runtimes share the same read-only `auditTrails`
+// resource gated by `pm.audit-logger.logs`.
 export { default } from './plugin';

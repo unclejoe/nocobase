@@ -17,6 +17,9 @@
  */
 
 import { ReloadOutlined } from '@ant-design/icons';
+import { AIEmployeeShortcut } from '@nocobase/plugin-ai/client-v2';
+import type { Task } from '@nocobase/plugin-ai/client-v2';
+import { useAIConfigRepository, useChatBoxActions } from '@nocobase/plugin-ai/client';
 import {
   CollectionFilter,
   DEFAULT_PAGE_SIZE,
@@ -141,6 +144,29 @@ function AuditLogsPageInner() {
     [engine],
   );
 
+  // Auditor AI employee + chat trigger. `AIEmployeeShortcut` is a presentational
+  // component (it does not open the chat itself); we drive the global chat box
+  // via `useChatBoxActions().triggerTask`, the same hook the flow-model avatar
+  // uses. Clicking the avatar opens the chat with a greeting; clicking a task
+  // in the profile card sends that single task automatically. `useRequest`
+  // populates the repository's cache and re-renders once the auditor is loaded.
+  const aiConfigRepository = useAIConfigRepository();
+  const { triggerTask } = useChatBoxActions();
+  const { data: employees } = useRequest(() => aiConfigRepository.getAIEmployees());
+  const auditor = useMemo(() => employees?.find((item) => item.username === 'auditor'), [employees]);
+  const openAuditorChat = useMemoizedFn(() => {
+    if (!auditor) {
+      return;
+    }
+    triggerTask({ aiEmployee: auditor });
+  });
+  const triggerAuditorTask = useMemoizedFn((task: Task) => {
+    if (!auditor) {
+      return;
+    }
+    triggerTask({ aiEmployee: auditor, tasks: [task], auto: true });
+  });
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [filterPayload, setFilterPayload] = useState<unknown>(undefined);
@@ -231,6 +257,41 @@ function AuditLogsPageInner() {
     [openDetail, t],
   );
 
+  // Preset audit-analysis tasks handed to the Auditor AI employee. Each task
+  // auto-sends a prompt; the employee loads the `audit-analysis` skill (which
+  // queries auditTrails:list itself), so the page does not pre-fetch data.
+  const tasks = useMemo<Task[]>(
+    () => [
+      {
+        title: t('Analyze recent failed sign-ins'),
+        message: {
+          system: 'Load the audit-analysis skill, then analyze failed sign-ins.',
+          user: t(
+            'Find accounts with repeated failed sign-ins (status >= 400) and any successful sign-in that immediately followed.',
+          ),
+        },
+        autoSend: true,
+      },
+      {
+        title: t('Check sensitive resource changes'),
+        message: {
+          system: 'Load the audit-analysis skill, then review sensitive changes.',
+          user: t('Review updates and deletions on roles and users, and any bulk destroy actions.'),
+        },
+        autoSend: true,
+      },
+      {
+        title: t('Summarize anomalous IPs'),
+        message: {
+          system: 'Load the audit-analysis skill, then summarize anomalous IPs.',
+          user: t('Group activity by IP and highlight unfamiliar IPs or IPs with many denied actions.'),
+        },
+        autoSend: true,
+      },
+    ],
+    [t],
+  );
+
   return (
     <Card variant="borderless">
       <Flex justify="space-between" style={{ marginBottom: token.margin }}>
@@ -241,6 +302,14 @@ function AuditLogsPageInner() {
           t={t}
         />
         <Space>
+          <AIEmployeeShortcut
+            aiEmployee={{ username: 'auditor' }}
+            tasks={tasks}
+            size={32}
+            mask={false}
+            onClick={openAuditorChat}
+            onTaskClick={triggerAuditorTask}
+          />
           <Button icon={<ReloadOutlined />} onClick={() => refresh()}>
             {t('Refresh')}
           </Button>
