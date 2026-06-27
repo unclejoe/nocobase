@@ -50,6 +50,7 @@ export default defineCollection({
   ],
   indexes: [
     {
+      unique: true,
       fields: ['workflowId', 'type', 'targetKey'],
       name: 'approval_audiences_workflow_id_type_target_key',
     },

@@ -27,6 +27,7 @@ import {
   APPROVAL_EXECUTION_STATUS,
   APPROVAL_RECORD_STATUS,
   APPROVAL_RECORD_TYPE,
+  APPROVAL_STATUS,
   APPROVAL_COLLECTION,
   APPROVAL_EXECUTION_COLLECTION,
   APPROVAL_RECORD_COLLECTION,
@@ -151,7 +152,46 @@ export default class ApprovalInstruction extends Instruction {
       })),
     });
 
+    // Best-effort todo notification to the approvers (§4.6). Uses the
+    // notification-manager plugin's in-app-message channel if available; degrades
+    // silently when the notification plugin is absent or has no channel configured.
+    void this.notifyApprovers(approverIds, title, approvalId);
+
     return job;
+  }
+
+  /** Send a todo notification to each approver (best-effort, non-blocking). */
+  private async notifyApprovers(
+    approverIds: number[],
+    title: string | undefined,
+    approvalId: number | string | null,
+  ): Promise<void> {
+    if (!approverIds.length) {
+      return;
+    }
+    try {
+      // Lazy-require to avoid a hard dependency at plugin load time.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const NotificationsServerPlugin = require('@nocobase/plugin-notification-manager').default;
+      const notificationServer = this.workflow.app.pm.get(NotificationsServerPlugin);
+      if (!notificationServer || typeof notificationServer.send !== 'function') {
+        return;
+      }
+      for (const userId of approverIds) {
+        await notificationServer.send({
+          channelName: 'in-app-message',
+          message: {
+            title: title || 'Approval todo',
+            content: 'You have a pending approval request.',
+            recipientId: userId,
+            data: { approvalId },
+          },
+          triggerFrom: 'workflow-approval',
+        });
+      }
+    } catch {
+      // Notification is best-effort; never block the approval flow on it.
+    }
   }
 
   async resume(node: FlowNodeModel, job: IJob, processor: Processor): Promise<IJob | null> {
@@ -177,13 +217,23 @@ export default class ApprovalInstruction extends Instruction {
 
     const status = job.status || (getAggregateStatus(mode, distribution, approverIds.length) ?? JOB_STATUS.PENDING);
 
+    // Detect a return decision: any record carries a returnToNodeKey and was
+    // invalidated (the return action sets status=INVALID + returnToNodeKey).
+    const returnedRecord = records.find(
+      (r) => r.get('status') === APPROVAL_RECORD_STATUS.INVALID && r.get('returnToNodeKey'),
+    );
+
     // Map the approval record status to a workflow job status.
     let jobStatus = status;
     if (status === APPROVAL_RECORD_STATUS.APPROVED) {
       jobStatus = JOB_STATUS.RESOLVED;
     } else if (status < APPROVAL_RECORD_STATUS.PENDING) {
-      jobStatus = JOB_STATUS.REJECTED;
+      // A return is not a hard reject — keep the job pending so the workflow
+      // can route back; a real reject (no returnToNodeKey) rejects.
+      jobStatus = returnedRecord ? JOB_STATUS.PENDING : JOB_STATUS.REJECTED;
     }
+
+    const approvalId = processor.execution?.context?.approvalId;
 
     // Update the suspended execution row to reflect this round's outcome.
     const ExecRepo = this.workflow.app.db.getRepository(APPROVAL_EXECUTION_COLLECTION);
@@ -196,10 +246,36 @@ export default class ApprovalInstruction extends Instruction {
               ? APPROVAL_EXECUTION_STATUS.INTERRUPTED
               : null,
       },
-      where: { approvalId: processor.execution?.context?.approvalId, executionId: job.executionId },
+      where: { approvalId, executionId: job.executionId },
     });
+
+    // On resolve/reject, finalize the parent approval's status.
+    if (jobStatus === JOB_STATUS.RESOLVED || jobStatus === JOB_STATUS.REJECTED) {
+      const ApprovalRepo = this.workflow.app.db.getRepository(APPROVAL_COLLECTION);
+      await ApprovalRepo.update({
+        filterByTk: approvalId,
+        values: { status: APPROVAL_STATUS.FINISHED },
+      });
+    }
+
+    // Link this round's records to the previous round via prevRecordId when a
+    // return happened (the audit chain). The actual job-status for a return
+    // stays PENDING so the workflow engine routes to returnToNodeKey.
+    if (returnedRecord) {
+      const prevRound = await RecordRepo.findOne({
+        where: { approvalId, id: { $ne: record_id(records, returnedRecord) } },
+        order: [['createdAt', 'DESC']],
+      });
+      if (prevRound) {
+        await returnedRecord.update({ prevRecordId: prevRound.get('id') });
+      }
+    }
 
     job.set({ status: jobStatus });
     return job;
   }
+}
+
+function record_id(records: any[], target: any): number | string {
+  return target.get('id');
 }

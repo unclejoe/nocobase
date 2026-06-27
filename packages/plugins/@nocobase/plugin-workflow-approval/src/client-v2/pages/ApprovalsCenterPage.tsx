@@ -71,9 +71,28 @@ function ApprovalDetail({ record, onClose }: { record: ApprovalRecord; onClose: 
   };
 
   const records = record.approval?.records ?? [];
+  // Business snapshot stored on the approval (§4.2). Render a compact summary.
+  const snapshot: Record<string, unknown> | undefined = record.approval?.data;
+  const snapshotRows = snapshot
+    ? Object.entries(snapshot)
+        .filter(([k, v]) => !['data', 'action'].includes(k) && v != null && typeof v !== 'object')
+        .slice(0, 12)
+    : [];
 
   return (
     <Drawer open width={520} onClose={onClose} title={t('Approval records')}>
+      {snapshotRows.length > 0 ? (
+        <>
+          <Text strong>{t('Business snapshot')}</Text>
+          <div style={{ margin: '8px 0 16px' }}>
+            {snapshotRows.map(([k, v]) => (
+              <div key={k}>
+                <Text type="secondary">{k}:</Text> <Text>{String(v)}</Text>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
       <Timeline
         items={records.map((r) => ({
           color: r.status === APPROVAL_RECORD_STATUS.APPROVED ? 'green' : (r.status ?? 0) < 0 ? 'red' : 'blue',
@@ -83,6 +102,14 @@ function ApprovalDetail({ record, onClose }: { record: ApprovalRecord; onClose: 
               {r.comment ? (
                 <div>
                   <Text type="secondary">{r.comment}</Text>
+                </div>
+              ) : null}
+              {/* Data change diff (§4.2): render changes if the approver recorded any. */}
+              {r.changes ? (
+                <div style={{ marginTop: 4 }}>
+                  <Text type="secondary" code>
+                    {JSON.stringify(r.changes)}
+                  </Text>
                 </div>
               ) : null}
             </div>

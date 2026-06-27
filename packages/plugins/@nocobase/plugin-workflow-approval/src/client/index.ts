@@ -21,6 +21,11 @@ import WorkflowPlugin, { Trigger } from '@nocobase/plugin-workflow/client';
 
 import ApprovalInstructionClient from './instruction';
 import approvalTodo from './ApprovalTodo';
+import {
+  SubmitForApprovalAction,
+  submitForApprovalActionInitializer,
+  useSubmitForApprovalActionProps,
+} from './SubmitForApprovalInitializer';
 import { RelatedApprovalsModel } from '../client-v2/RelatedApprovalsModel';
 import { lang } from '../locale';
 import { INSTRUCTION_TYPE, TASK_TYPE_APPROVAL, TRIGGER_TYPE } from '../common/constants';
@@ -57,5 +62,19 @@ export default class PluginWorkflowApprovalClient extends Plugin {
     // list block. Without this, the tab throws
     // "Model class 'RelatedApprovalsModel' not found. Please register it first."
     this.app.flowEngine.registerModels({ RelatedApprovalsModel });
+
+    // Register the "Submit for approval" action button so admins can drop it
+    // onto a business record's detail/form actions (§4.5).
+    this.app.addComponents({ SubmitForApprovalAction });
+    this.app.addScopes({ useSubmitForApprovalActionProps });
+    this.app.schemaInitializerManager
+      .get('details:configureActions')
+      .add('approval.submit', submitForApprovalActionInitializer);
+    this.app.schemaInitializerManager
+      .get('detailsWithPaging:configureActions')
+      .add('approval.submit', submitForApprovalActionInitializer);
+    this.app.schemaInitializerManager
+      .get('createForm:configureActions')
+      .add('approval.submit', submitForApprovalActionInitializer);
   }
 }

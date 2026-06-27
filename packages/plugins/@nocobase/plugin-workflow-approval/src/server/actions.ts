@@ -50,11 +50,24 @@ export async function submit(context: Context, next: () => Promise<void>) {
   const db = context.db;
 
   // Snapshot the full business record (with associations) at submission time.
+  // §5.4 requires the snapshot to contain the full association JSON, so we
+  // append every association field the target collection declares.
+  const targetCollection = db.getCollection(collection);
+  if (!targetCollection) {
+    return context.throw(400, `collection "${collection}" not found`);
+  }
   const targetRepo = db.getRepository(collection);
   if (!targetRepo) {
     return context.throw(400, `collection "${collection}" not found`);
   }
-  const snapshot = await targetRepo.findOne({ filterByTk: dataKey, context });
+  const associationFields = Array.from(targetCollection.fields.values())
+    .filter((f) => f.type === 'belongsTo' || f.type === 'hasOne' || f.type === 'hasMany' || f.type === 'belongsToMany')
+    .map((f) => f.name);
+  const snapshot = await targetRepo.findOne({
+    filterByTk: dataKey,
+    appends: associationFields,
+    context,
+  });
   if (!snapshot) {
     return context.throw(404, 'business record not found');
   }
@@ -134,6 +147,24 @@ async function decide(context: Context, next: () => Promise<void>, decision: 'ap
   });
   await record.save();
 
+  // Update the parent approval's status + latestExecutionId so the record
+  // list and AI summary reflect the current round's outcome. Approve/return
+  // mark the record; the Instruction.resume() drives final workflow status.
+  const approval = record.get('approval');
+  if (approval) {
+    const ApprovalRepo = db.getRepository(APPROVAL_COLLECTION);
+    const patch: { status?: number; latestExecutionId?: number | string } = {
+      latestExecutionId: record.get('approvalExecutionId') ?? undefined,
+    };
+    if (decision === 'reject') {
+      patch.status = APPROVAL_STATUS.FINISHED;
+    } else if (decision === 'approve') {
+      // Leave FINISHED-setting to Instruction.resume when all approvers approve;
+      // a single approve keeps the approval IN_PROGRESS.
+    }
+    await ApprovalRepo.update({ filterByTk: approval.get('id'), values: patch, context });
+  }
+
   // Resume the workflow job so ApprovalInstruction.resume can aggregate.
   const job = record.get('job');
   const processor = plugin.createProcessor(execution);
@@ -161,6 +192,11 @@ export async function reject(context: Context, next: () => Promise<void>) {
 export async function returnBack(context: Context, next: () => Promise<void>) {
   return decide(context, next, 'return');
 }
+
+// Canonical name per the requirements spec (§6); `return` is a JS reserved
+// word so the handler is named returnBack, but we expose `return` as an alias
+// for ACL/resource registration where the literal action name is needed.
+export { returnBack as returnAction };
 
 /** List the current user's approval records (used by the task center). */
 export async function listMine(context: Context, next: () => Promise<void>) {

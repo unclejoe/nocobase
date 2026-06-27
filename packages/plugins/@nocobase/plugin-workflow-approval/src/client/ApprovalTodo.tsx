@@ -56,8 +56,27 @@ export function ApprovalDetail({ record, onClose }: { record: any; onClose: () =
     }
   };
 
+  const snapshot: Record<string, unknown> | undefined = record.approval?.data;
+  const snapshotRows = snapshot
+    ? Object.entries(snapshot)
+        .filter(([k, v]) => !['data', 'action'].includes(k) && v != null && typeof v !== 'object')
+        .slice(0, 12)
+    : [];
+
   return (
     <Drawer open width={520} onClose={onClose} title={t('Approval records')}>
+      {snapshotRows.length > 0 ? (
+        <>
+          <Text strong>{t('Business snapshot')}</Text>
+          <div style={{ margin: '8px 0 16px' }}>
+            {snapshotRows.map(([k, v]) => (
+              <div key={k}>
+                <Text type="secondary">{k}:</Text> <Text>{String(v)}</Text>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
       <Timeline
         items={(record.approval?.records ?? []).map((r: any) => ({
           color: r.status === APPROVAL_RECORD_STATUS.APPROVED ? 'green' : r.status < 0 ? 'red' : 'blue',
@@ -67,6 +86,13 @@ export function ApprovalDetail({ record, onClose }: { record: any; onClose: () =
               {r.comment ? (
                 <div>
                   <Text type="secondary">{r.comment}</Text>
+                </div>
+              ) : null}
+              {r.changes ? (
+                <div style={{ marginTop: 4 }}>
+                  <Text type="secondary" code>
+                    {JSON.stringify(r.changes)}
+                  </Text>
                 </div>
               ) : null}
             </div>
