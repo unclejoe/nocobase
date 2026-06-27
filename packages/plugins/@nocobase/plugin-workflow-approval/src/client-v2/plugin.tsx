@@ -19,6 +19,7 @@ import { Plugin } from '@nocobase/client-v2';
 
 import { NAMESPACE } from '../common/constants';
 import { RelatedApprovalsModel } from './RelatedApprovalsModel';
+import { registerSubmitForApprovalAction } from './SubmitForApprovalActionModel';
 
 export class PluginWorkflowApprovalClientV2 extends Plugin<Record<string, never>, Application> {
   async load() {
@@ -26,6 +27,10 @@ export class PluginWorkflowApprovalClientV2 extends Plugin<Record<string, never>
     // list block. Without this, the tab throws
     // "Model class 'RelatedApprovalsModel' not found. Please register it first."
     this.app.flowEngine.registerModels({ RelatedApprovalsModel });
+
+    // Register the "Submit for approval" action model into the v2 record-detail
+    // designer, so an admin can add the button to a business record's action bar.
+    registerSubmitForApprovalAction(this.app.flowEngine);
 
     const centerTitle = this.t('Approval center', { ns: NAMESPACE }) as unknown as string;
 

@@ -27,6 +27,7 @@ import {
   useSubmitForApprovalActionProps,
 } from './SubmitForApprovalInitializer';
 import { RelatedApprovalsModel } from '../client-v2/RelatedApprovalsModel';
+import { registerSubmitForApprovalAction } from '../client-v2/SubmitForApprovalActionModel';
 import { lang } from '../locale';
 import { INSTRUCTION_TYPE, TASK_TYPE_APPROVAL, TRIGGER_TYPE } from '../common/constants';
 
@@ -62,6 +63,11 @@ export default class PluginWorkflowApprovalClient extends Plugin {
     // list block. Without this, the tab throws
     // "Model class 'RelatedApprovalsModel' not found. Please register it first."
     this.app.flowEngine.registerModels({ RelatedApprovalsModel });
+
+    // Register the "Submit for approval" action model into the record-detail
+    // FlowEngine designer (the record page is FlowEngine-driven even in the v1
+    // bundle), so an admin can add the button to a business record's action bar.
+    registerSubmitForApprovalAction(this.app.flowEngine);
 
     // Register the "Submit for approval" action button so admins can drop it
     // onto a business record's detail/form actions (§4.5).
