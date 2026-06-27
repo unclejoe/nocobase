@@ -99,6 +99,7 @@
     "@nocobase/plugin-workflow-mailer": "2.2.0-beta.7",
     "@nocobase/plugin-workflow-manual": "2.2.0-beta.7",
     "@nocobase/plugin-workflow-notification": "2.2.0-beta.7",
+    "@nocobase/plugin-workflow-approval": "2.2.0-beta.7",
     "@nocobase/plugin-workflow-parallel": "2.2.0-beta.7",
     "@nocobase/plugin-workflow-request": "2.2.0-beta.7",
     "@nocobase/plugin-workflow-request-interceptor": "2.2.0-beta.7",

@@ -1,0 +1,32 @@
+{
+  "name": "@nocobase/plugin-workflow-approval",
+  "version": "2.2.0-beta.7",
+  "displayName": "Workflow: Approval",
+  "displayName.zh-CN": "工作流：审批",
+  "description": "Open-source approval workflow: trigger by submitting a business record for approval, pause at an approval node for approvers to pass/reject/return, with a task center and AI assistance.",
+  "description.zh-CN": "开源审批工作流：提交业务记录发起审批，在审批节点暂停等待审批人通过/拒绝/退回，含任务中心与 AI 辅助。",
+  "main": "./dist/server/index.js",
+  "license": "AGPL-3.0",
+  "devDependencies": {
+    "antd": "5.x",
+    "joi": "^17.13.3",
+    "react": "18.x",
+    "react-i18next": "^11.15.1"
+  },
+  "peerDependencies": {
+    "@nocobase/client": "2.x",
+    "@nocobase/client-v2": "2.x",
+    "@nocobase/database": "2.x",
+    "@nocobase/server": "2.x",
+    "@nocobase/plugin-workflow": "2.x"
+  },
+  "keywords": [
+    "Workflow"
+  ],
+  "nocobase": {
+    "supportedVersions": [
+      "2.x"
+    ],
+    "editionLevel": 0
+  }
+}
