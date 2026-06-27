@@ -65,9 +65,9 @@ export default class PluginWorkflowApprovalClient extends Plugin {
     this.app.flowEngine.registerModels({ RelatedApprovalsModel });
 
     // Register the "Submit for approval" action model into the record-detail
-    // FlowEngine designer (the record page is FlowEngine-driven even in the v1
-    // bundle), so an admin can add the button to a business record's action bar.
-    registerSubmitForApprovalAction(this.app.flowEngine);
+    // FlowEngine designer. Uses the async class resolver so it waits for
+    // RecordActionGroupModel to be registered by the flow-engine plugin.
+    void registerSubmitForApprovalAction(this.app.flowEngine);
 
     // Register the "Submit for approval" action button so admins can drop it
     // onto a business record's detail/form actions (§4.5).

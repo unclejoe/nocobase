@@ -117,7 +117,14 @@ SubmitForApprovalActionModel.registerFlow({
 });
 
 /** Register the action model into the record action group so it appears in the designer. */
-export function registerSubmitForApprovalAction(flowEngine: FlowEngine) {
+export async function registerSubmitForApprovalAction(flowEngine: FlowEngine) {
+  // Use the async resolver: RecordActionGroupModel is registered by the
+  // flow-engine plugin, which may not have loaded yet when this runs. The async
+  // version awaits the class becoming available (per custom-action-trigger's
+  // pattern). Falls back to sync if the async API is unavailable.
+  if (typeof (flowEngine as any).getModelClassAsync === 'function') {
+    await (flowEngine as any).getModelClassAsync('RecordActionGroupModel');
+  }
   const recordActionGroup = flowEngine.getModelClass('RecordActionGroupModel') as ActionGroupModelClass | undefined;
   recordActionGroup?.registerActionModels?.({ SubmitForApprovalActionModel });
 }
