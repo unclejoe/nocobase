@@ -56,7 +56,7 @@ export const StructuredOutput: React.FC = () => {
                 'x-component': 'Input.TextArea',
               },
               strict: {
-                title: 'Strict',
+                title: t('Strict'),
                 type: 'boolean',
                 'x-decorator': 'FormItem',
                 'x-component': 'Checkbox',

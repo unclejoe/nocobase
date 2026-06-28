@@ -1,10 +1,10 @@
 ---
 scope: SPECIFIED
 name: audit-analysis
-description: Read NocoBase request-level audit trails (auditTrails) and surface security risks — failed sign-ins, denied actions, sensitive changes, anomalous IPs.
+description: 读取 NocoBase 请求级审计日志（auditTrails），暴露安全风险——登录失败、被拒绝的操作、敏感变更、异常 IP。
 introduction:
-  title: Audit analysis
-  about: Query the read-only auditTrails resource and turn request-level audit logs into risk findings.
+  title: 审计分析
+  about: 查询只读的 auditTrails 资源，将请求级审计日志转化为风险发现。
 tools:
   - getSkill
 ---

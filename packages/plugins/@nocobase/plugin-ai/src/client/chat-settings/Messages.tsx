@@ -255,9 +255,9 @@ export const Messages: React.FC = () => {
                       'x-decorator': 'FormItem',
                       'x-component': 'Select',
                       enum: [
-                        { label: 'System', value: 'system' },
-                        { label: 'User', value: 'user' },
-                        { label: 'Assistant', value: 'assistant' },
+                        { label: tval('System', { ns: namespace }), value: 'system' },
+                        { label: tval('User', { ns: namespace }), value: 'user' },
+                        { label: tval('Assistant', { ns: namespace }), value: 'assistant' },
                       ],
                       default: 'user',
                     },

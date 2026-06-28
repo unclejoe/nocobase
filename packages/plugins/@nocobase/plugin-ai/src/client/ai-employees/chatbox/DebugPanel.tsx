@@ -42,20 +42,26 @@ const LOG_TYPE_COLORS: Record<LogType, string> = {
   error: 'red',
 };
 
-const LOG_TYPE_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'request', label: 'Request' },
-  { value: 'stream_text', label: 'Stream Text' },
-  { value: 'stream_search', label: 'Stream Search' },
-  { value: 'stream_start', label: 'Stream Start' },
-  { value: 'stream_tools', label: 'Stream Tools' },
-  { value: 'stream_delta', label: 'Stream Delta' },
-  { value: 'stream_reasoning', label: 'Stream Reasoning' },
-  { value: 'stream_error', label: 'Stream Error' },
-  { value: 'tool_call', label: 'Tool Call' },
-  { value: 'tool_result', label: 'Tool Result' },
-  { value: 'error', label: 'Error' },
-];
+const useLogTypeOptions = () => {
+  const t = useT();
+  return useMemo(
+    () => [
+      { value: 'all', label: t('All') },
+      { value: 'request', label: t('Request') },
+      { value: 'stream_text', label: t('Stream Text') },
+      { value: 'stream_search', label: t('Stream Search') },
+      { value: 'stream_start', label: t('Stream Start') },
+      { value: 'stream_tools', label: t('Stream Tools') },
+      { value: 'stream_delta', label: t('Stream Delta') },
+      { value: 'stream_reasoning', label: t('Stream Reasoning') },
+      { value: 'stream_error', label: t('Stream Error') },
+      { value: 'tool_call', label: t('Tool Call') },
+      { value: 'tool_result', label: t('Tool Result') },
+      { value: 'error', label: t('Error') },
+    ],
+    [t],
+  );
+};
 
 interface LogItemProps {
   log: LogEntry;
@@ -65,6 +71,7 @@ interface LogItemProps {
 
 const LogItem: React.FC<LogItemProps> = ({ log, expanded, onToggleExpand }) => {
   const { token } = useToken();
+  const t = useT();
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -89,9 +96,9 @@ const LogItem: React.FC<LogItemProps> = ({ log, expanded, onToggleExpand }) => {
   const handleCopy = () => {
     try {
       navigator.clipboard.writeText(JSON.stringify(log.data, null, 2));
-      message.success('Copied to clipboard');
+      message.success(t('Copied to clipboard'));
     } catch {
-      message.error('Failed to copy');
+      message.error(t('Failed to copy'));
     }
   };
 
@@ -130,7 +137,7 @@ const LogItem: React.FC<LogItemProps> = ({ log, expanded, onToggleExpand }) => {
         >
           {getPreview(log.data)}
         </Text>
-        <Tooltip title="Copy">
+        <Tooltip title={t('Copy')}>
           <Button
             type="text"
             size="small"
@@ -174,6 +181,7 @@ export const DebugPanel: React.FC = () => {
   const virtualListRef = useRef<VirtualListRef>(null);
   const t = useT();
   const { token } = useToken();
+  const logTypeOptions = useLogTypeOptions();
 
   // Load initial logs and subscribe to updates
   useEffect(() => {
@@ -302,7 +310,7 @@ export const DebugPanel: React.FC = () => {
           <Select
             value={filterType}
             onChange={setFilterType}
-            options={LOG_TYPE_OPTIONS}
+            options={logTypeOptions}
             style={{ width: 120 }}
             size="small"
           />

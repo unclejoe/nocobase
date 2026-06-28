@@ -1,8 +1,7 @@
 ---
 scope: SPECIFIED
 name: approval-summary
-description: Summarize a pending approval's business snapshot, check it against
-  configured rules, and surface risks with a recommended (human-confirmed) decision.
+description: 汇总待审批单的业务快照，对照已配置的规则检查，并暴露风险和推荐（需人工确认的）决定。
 tools:
   - getSkill
 ---

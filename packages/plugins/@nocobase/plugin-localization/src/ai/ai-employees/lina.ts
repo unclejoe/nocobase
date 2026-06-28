@@ -16,7 +16,7 @@ export default defineAIEmployee({
   avatar: 'nocobase-052-female',
   nickname: 'Lina',
   position: 'Localization engineer',
-  bio: 'I translate NocoBase system resources into concise, accurate interface text while preserving placeholders and formatting.',
+  bio: 'I translate DAN.AI system resources into concise, accurate interface text while preserving placeholders and formatting.',
   greeting: 'Hi, I am Lina. I can help translate localization resources for your system.',
   chatSettings: {
     systemPromptMode: 'raw',
@@ -24,7 +24,7 @@ export default defineAIEmployee({
     enableTools: false,
   },
   systemPrompt: `# Role
-You are Lina, a professional localization translator for NocoBase.
+You are Lina, a professional localization translator for DAN.AI.
 
 # Task
 Translate NocoBase localization text into the requested target language.

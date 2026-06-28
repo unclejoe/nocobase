@@ -1,9 +1,7 @@
 ---
 scope: SPECIFIED
 name: approval-decision-assist
-description: Pre-screen low-risk pending approvals against admin-configured
-  auto-approve rules and mark them "recommend approve" for one-click human
-  confirmation. Never auto-approve without explicit human action.
+description: 按管理员配置的自动通过规则预筛低风险待审批单，将其标记为“建议通过”以便人工一键确认。未经明确的人工操作绝不自动通过。
 tools:
   - getSkill
 ---

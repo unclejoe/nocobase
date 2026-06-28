@@ -1,8 +1,7 @@
 ---
 scope: SPECIFIED
 name: approval-analytics
-description: Analyze approval flow health — throughput, bottleneck node latency,
-  return/reject rates, approver backlog — and render charts.
+description: 分析审批流的健康度——吞吐量、瓶颈节点耗时、退回/驳回率、审批人积压——并渲染图表。
 tools:
   - getSkill
   - chartGenerator

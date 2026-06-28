@@ -302,7 +302,7 @@ export const Employees: React.FC = () => {
                               'x-component': 'Action.Drawer.Footer',
                               properties: {
                                 close: {
-                                  title: 'Cancel',
+                                  title: '{{t("Cancel")}}',
                                   'x-component': 'Action',
                                   'x-component-props': {
                                     type: 'default',

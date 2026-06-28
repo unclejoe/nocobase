@@ -1,8 +1,7 @@
 ---
 scope: SPECIFIED
 name: approval-routing
-description: Recommend which approval workflow a business record should go through,
-  pre-check required fields and prerequisites, and estimate the approval chain.
+description: 推荐业务记录应走哪条审批流，预检必填字段和前置条件，并估算审批链。
 tools:
   - getSkill
 ---

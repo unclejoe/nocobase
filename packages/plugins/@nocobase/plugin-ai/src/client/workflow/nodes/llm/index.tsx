@@ -66,15 +66,15 @@ export class LLMInstruction extends Instruction {
       children: [
         {
           value: 'content',
-          label: 'Content',
+          label: tval('Content', { ns: namespace }),
         },
         {
           value: 'structuredContent',
-          label: 'Structured content',
+          label: tval('Structured content', { ns: namespace }),
         },
         {
           value: 'additionalKwargs',
-          label: 'Additional Kwargs',
+          label: tval('Additional Kwargs', { ns: namespace }),
         },
       ],
     };

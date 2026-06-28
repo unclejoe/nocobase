@@ -338,6 +338,6 @@
   "ai.skills.dataQuery.about": "使用工具查看元数据、查询记录并对指定数据源执行聚合分析",
   "ai.skills.dataModeling.title": "数据建模",
   "ai.skills.dataModeling.about": "帮助将业务场景转换为带有表声明和关系图的规范化数据库模式。",
-  "ai.skills.dataMetadata.title": "获取数据模型元信息",
+  "ai.skills.dataMetadata.title": "数据模型元信息",
   "ai.skills.dataMetadata.about": "帮助获取数据模型元数据（如数据库表定义，RESTful API 定义），如数据表定义，字段元数据"
 }

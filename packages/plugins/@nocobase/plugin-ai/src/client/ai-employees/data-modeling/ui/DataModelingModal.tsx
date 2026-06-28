@@ -159,7 +159,7 @@ export const DataModelingModal: React.FC<{
     {
       key: 'definition',
       icon: <FileTextOutlined />,
-      label: 'Definition',
+      label: t('Definition'),
       children: (
         <TabPane>
           <CodeInternal language="json" value={JSON.stringify(collections, null, 2)} />
