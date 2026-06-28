@@ -34,6 +34,10 @@ import { INSTRUCTION_TYPE, TASK_TYPE_APPROVAL, TRIGGER_TYPE } from '../common/co
 /** Minimal trigger UI descriptor (config panel rendered by the workflow designer). */
 class ApprovalTriggerClient extends Trigger {
   title = lang('Approval trigger');
+  // Shown as the trigger's one-line intro in the "Select trigger" dropdown.
+  description = lang(
+    'Triggered when a record is submitted for approval. The workflow then routes the request to approvers and drives the approval flow.',
+  );
   type = TRIGGER_TYPE;
   fieldset = {
     collection: {

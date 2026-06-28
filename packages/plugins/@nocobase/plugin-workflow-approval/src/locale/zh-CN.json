@@ -23,6 +23,7 @@
   "Return to node": "退回节点",
   "Approval node": "审批节点",
   "Approval trigger": "审批触发器",
+  "Triggered when a record is submitted for approval. The workflow then routes the request to approvers and drives the approval flow.": "当记录被提交审批时触发，工作流随即将请求分发给审批人并驱动审批流程。",
   "Approver source": "审批人来源",
   "Countersign (all must approve)": "会签（全部通过）",
   "Or-sign (any one approves)": "或签（任一通过）",

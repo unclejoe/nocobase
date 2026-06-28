@@ -108,7 +108,7 @@ function useVariables(config, options) {
 
 export default class extends Trigger {
   title = `{{t("Custom action event", { ns: "${NAMESPACE}" })}}`;
-  description = `{{t('When the "Trigger Workflow" button is clicked, the event is triggered based on different context where the button is located. For complex data processing that cannot be handled simply by built-in operations (CRUD) of NocoBase, you can define a series of operations through a workflow and trigger it with the "Trigger Workflow" button.', { ns: "${NAMESPACE}" })}}`;
+  description = `{{t('When the "Trigger Workflow" button is clicked, the event is triggered based on different context where the button is located. For complex data processing that cannot be handled simply by built-in operations (CRUD) of DAN.AI, you can define a series of operations through a workflow and trigger it with the "Trigger Workflow" button.', { ns: "${NAMESPACE}" })}}`;
   presetFieldset = {
     type: {
       type: 'number',

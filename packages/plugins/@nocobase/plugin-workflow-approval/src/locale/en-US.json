@@ -23,6 +23,7 @@
   "Return to node": "Return to node",
   "Approval node": "Approval node",
   "Approval trigger": "Approval trigger",
+  "Triggered when a record is submitted for approval. The workflow then routes the request to approvers and drives the approval flow.": "Triggered when a record is submitted for approval. The workflow then routes the request to approvers and drives the approval flow.",
   "Approver source": "Approver source",
   "Countersign (all must approve)": "Countersign (all must approve)",
   "Or-sign (any one approves)": "Or-sign (any one approves)",
