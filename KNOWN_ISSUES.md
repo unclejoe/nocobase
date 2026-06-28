@@ -96,3 +96,36 @@ The AI employee button is a FlowModel that must be registered with the FlowEngin
 - Hide the AI employees action from v2 action groups until the port lands.
 
 **Verification of fix:** on the modern client (`/v/`), pages with an AI employees action render the avatar button without the "not found" error; clicking it opens the task picker / triggers the AI employee as on v1. Add a v2 unit test asserting `engine.registerModels({ AIEmployeeButtonModel, AIEmployeeActionModel, ... })` and that `AIEmployeeActionModel.defineChildren` emits children resolvable to `AIEmployeeButtonModel`.
+
+## KI-003: Order (报价单) → 邮件 tab → 邮件详情 throws "Model class 'MailDetailBlockModelWithDraft' not found"
+
+**Status:** Root cause located; fix deferred pending a decision on the intended behavior of the block (see "Open question" below). Affects only the modern client (`/v/`).
+
+**Symptom:** In the 订单 (Order) module, on the 报价单 (Quotation) page, opening the 邮件 (Mail) tab and selecting a subject email renders an error page instead of the email detail. The on-screen message is:
+
+```
+Model class 'MailDetailBlockModelWithDraft' not found. Please register it first.
+```
+
+**Reproduction:** Open the modern client at `http://localhost:13000/v/`, navigate to 订单 → 报价单 → 邮件 tab, click a row. The detail area shows the error above; React fiber shows the model instance is an `ErrorFlowModel`.
+
+**Root cause (confirmed by code trace):**
+
+The email detail block is a persisted FlowModel whose `use` field is the string `'MailDetailBlockModelWithDraft'`, but **no client plugin registers that class** with the FlowEngine. When the v2 FlowEngine tries to instantiate it, `getModelClass('MailDetailBlockModelWithDraft')` resolves to nothing and it falls back to `ErrorFlowModel`.
+
+- The error is raised in `packages/core/flow-engine/src/flowEngine.ts:954-956`: when no class resolves for the requested `use`, an `ErrorFlowModel` is created with message `Model class '<name>' not found. Please register it first.`
+- **The class does not exist anywhere in the workspace.** Verified by exhaustive search across all `.ts/.tsx/.js/.jsx` source (excluding `.git`) and across all of `node_modules` (including installed pro plugins): zero matches for `MailDetailBlockModelWithDraft` / `MailDetailBlock`.
+- **No enabled plugin provides it.** `nb api pm list-enabled-v2` includes both `notification-email` and `notification-manager`, but their `client-v2/` trees (`packages/plugins/@nocobase/plugin-notification-email/src/client-v2/`, `.../plugin-notification-manager/src/client-v2/`) contain **zero** `registerModels` calls (verified by grep). There is no order/quote/mail-detail plugin in the enabled set at all.
+- **The block was created at app-build time** (UI builder). Its name, `MailDetailBlockModelWithDraft`, indicates it was intended to render an email's detail together with a reply **draft** (`WithDraft`), but the corresponding FlowModel class was never implemented and never registered. This is the same class of bug as KI-002 (a v2 `use` value with no backing registration), and the same fix pattern used by `plugin-workflow-approval` in `packages/plugins/@nocobase/plugin-workflow-approval/src/client-v2/plugin.tsx:29` (`this.app.flowEngine.registerModels({ RelatedApprovalsModel })`).
+
+**Open question (blocks the fix):** It is unknown which plugin should own this model and what the `WithDraft` behavior is supposed to be, because the class name originates from the app's stored page schema, not from any source in the repo. Three candidate fixes (see below); needs the app owner to confirm the intended behavior before implementing.
+
+**Candidate fixes (in order of increasing effort):**
+
+1. **Reuse an existing registered detail block (zero new code).** Change the block's persisted `use` from `'MailDetailBlockModelWithDraft'` to `'DetailsBlockModel'` (`packages/core/client-v2/src/flow/models/blocks/details/DetailsBlockModel.tsx:33`, already registered by core). This makes the page open and render a standard read-only record detail. Cost: loses the draft-reply intent baked into the name. Best if "just show the email" is acceptable.
+2. **Implement the model in a new/existing client-v2 plugin.** Following the `RelatedApprovalsModel.tsx` template (subclass of `BlockModel` from `@nocobase/client-v2`, render email body + a reply-draft sub-form/editor), register it via `this.app.flowEngine.registerModels({ MailDetailBlockModelWithDraft })` in a plugin's `load()` (natural home: `plugin-notification-email`'s `client-v2/plugin.tsx`). This is the standard fix for "named `use` with no backing class."
+3. **Redirect to a simpler read-only display model** (e.g. a markdown/text display block) if only email-body rendering is needed.
+
+**Why the page schema can't be edited directly here:** The stored v2 page/flow data lives in the `flowSurfaces`/`flowModels` internal tables and is not reachable via the standard `nb api resource` surface (returns errors on direct query). Editing the `use` value requires either the UI builder, a targeted API/migration against those tables, or the DSL reconciler.
+
+**Verification of fix:** on the modern client (`/v/`), 订单 → 报价单 → 邮件 tab → click a row renders the email detail (and, if fix #2 is chosen, the reply-draft area) without the "not found" error. React fiber confirms the model instance is no longer `ErrorFlowModel`.
