@@ -21,8 +21,15 @@
  * PENDING-job + resume pattern, adapted to the approval data model.
  */
 
-import { Instruction, JOB_STATUS, Processor, type FlowNodeModel, type IJob } from '@nocobase/plugin-workflow';
+import PluginWorkflowServer, {
+  Instruction,
+  JOB_STATUS,
+  Processor,
+  type FlowNodeModel,
+  type IJob,
+} from '@nocobase/plugin-workflow';
 import { ApproverResolver, type ApproverConfigItem } from './ApproverResolver';
+import { renderNotification, type NotificationVars } from './MsgTplRenderer';
 import {
   APPROVAL_EXECUTION_STATUS,
   APPROVAL_RECORD_STATUS,
@@ -31,6 +38,7 @@ import {
   APPROVAL_COLLECTION,
   APPROVAL_EXECUTION_COLLECTION,
   APPROVAL_RECORD_COLLECTION,
+  APPROVAL_MSG_TYPE,
 } from '../common/constants';
 
 export interface ApprovalNodeConfig {
@@ -88,19 +96,13 @@ function getAggregateStatus(
 export default class ApprovalInstruction extends Instruction {
   private resolver: ApproverResolver;
 
-  constructor(
-    workflow: Parameters<ConstructorParameters<typeof Instruction>[0]>[0] & {
-      app: { db: import('@nocobase/database').Database };
-    },
-  ) {
-    // @ts-expect-error — Instruction constructor expects the workflow plugin
+  constructor(workflow: PluginWorkflowServer) {
     super(workflow);
     this.resolver = new ApproverResolver(workflow.app.db);
   }
 
   async run(node: FlowNodeModel, prevJob: IJob | null, processor: Processor): Promise<IJob | null> {
     const config = (node.config || {}) as ApprovalNodeConfig;
-    const mode = getMode(config.mode);
 
     // Resolve approver user ids from the trigger context (applicant = createdBy
     // of the approval, available via the processor scope).
@@ -124,7 +126,8 @@ export default class ApprovalInstruction extends Instruction {
 
     const title = config.title ? processor.getParsedValue(config.title, node.id) : node.title;
 
-    // Create one suspended execution row for this round.
+    // Create one suspended execution row for this round. Each (re)submit is a
+    // fresh workflow execution, so (approvalId, executionId) is unique per round.
     const ExecRepo = this.workflow.app.db.getRepository(APPROVAL_EXECUTION_COLLECTION);
     const execRow = await ExecRepo.create({
       values: {
@@ -133,6 +136,16 @@ export default class ApprovalInstruction extends Instruction {
         status: null,
       },
     });
+
+    // When this run is a resubmit (a new execution after a return), link the new
+    // round's records to the previous round's records via prevRecordId, forming
+    // the audit chain required by §8.3. The previous round's records were marked
+    // INVALID by Instruction.resume() when the return was processed.
+    const prevRecordId = await this.findPrevRoundRecordId(approvalId, job.executionId);
+
+    // Field-level diff computed by the resubmit action (§4.2) and carried in the
+    // trigger context. Null on the first round (no prior snapshot to diff).
+    const changes = processor.execution?.context?.changes ?? null;
 
     // Create one pending record per approver.
     const RecordRepo = this.workflow.app.db.getRepository(APPROVAL_RECORD_COLLECTION);
@@ -149,27 +162,61 @@ export default class ApprovalInstruction extends Instruction {
         title,
         status: APPROVAL_RECORD_STATUS.PENDING,
         type: APPROVAL_RECORD_TYPE.NORMAL,
+        prevRecordId: prevRecordId ?? null,
+        changes,
       })),
     });
 
-    // Best-effort todo notification to the approvers (§4.6). Uses the
-    // notification-manager plugin's in-app-message channel if available; degrades
-    // silently when the notification plugin is absent or has no channel configured.
-    void this.notifyApprovers(approverIds, title, approvalId);
+    // Best-effort todo notification to the approvers (§4.6). Renders the
+    // approvalMsgTpls 'todo' template (falling back to a built-in default) and
+    // sends via the notification-manager in-app-message channel if available;
+    // degrades silently when the notification plugin is absent.
+    await this.notify(approverIds, APPROVAL_MSG_TYPE.TODO, {
+      approvalId,
+      title,
+      applicantId: applicantUserId,
+    });
 
     return job;
   }
 
-  /** Send a todo notification to each approver (best-effort, non-blocking). */
-  private async notifyApprovers(
-    approverIds: number[],
-    title: string | undefined,
+  /**
+   * Find the most recent INVALID record from a prior round of this approval
+   * (i.e. a record from a different execution that was invalidated by a return).
+   * Used to chain a resubmit's new records back to the previous round (§8.3).
+   * Returns null on the first round (no prior round exists).
+   */
+  private async findPrevRoundRecordId(
     approvalId: number | string | null,
-  ): Promise<void> {
-    if (!approverIds.length) {
+    currentExecutionId: number | string,
+  ): Promise<number | string | null> {
+    if (approvalId == null) {
+      return null;
+    }
+    const RecordRepo = this.workflow.app.db.getRepository(APPROVAL_RECORD_COLLECTION);
+    const prev = await RecordRepo.findOne({
+      where: {
+        approvalId,
+        executionId: { $ne: currentExecutionId },
+        status: APPROVAL_RECORD_STATUS.INVALID,
+      },
+      order: [['createdAt', 'DESC']],
+    });
+    return prev ? prev.get('id') : null;
+  }
+
+  /**
+   * Send a notification (todo or done) to a set of users. Renders the matching
+   * approvalMsgTpls template (§2.6/§4.6) and dispatches via the
+   * notification-manager in-app-message channel. Best-effort: never blocks the
+   * approval flow on notification failures.
+   */
+  private async notify(recipientIds: number[], msgType: string, vars: NotificationVars): Promise<void> {
+    if (!recipientIds.length) {
       return;
     }
     try {
+      const message = await renderNotification(this.workflow.app.db, msgType, vars);
       // Lazy-require to avoid a hard dependency at plugin load time.
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const NotificationsServerPlugin = require('@nocobase/plugin-notification-manager').default;
@@ -177,15 +224,16 @@ export default class ApprovalInstruction extends Instruction {
       if (!notificationServer || typeof notificationServer.send !== 'function') {
         return;
       }
-      for (const userId of approverIds) {
+      for (const userId of recipientIds) {
         await notificationServer.send({
           channelName: 'in-app-message',
           message: {
-            title: title || 'Approval todo',
-            content: 'You have a pending approval request.',
+            title: message.title,
+            content: message.content,
             recipientId: userId,
-            data: { approvalId },
+            data: { approvalId: vars.approvalId },
           },
+          receivers: { value: recipientIds, type: 'userId' },
           triggerFrom: 'workflow-approval',
         });
       }
@@ -228,9 +276,10 @@ export default class ApprovalInstruction extends Instruction {
     if (status === APPROVAL_RECORD_STATUS.APPROVED) {
       jobStatus = JOB_STATUS.RESOLVED;
     } else if (status < APPROVAL_RECORD_STATUS.PENDING) {
-      // A return is not a hard reject — keep the job pending so the workflow
-      // can route back; a real reject (no returnToNodeKey) rejects.
-      jobStatus = returnedRecord ? JOB_STATUS.PENDING : JOB_STATUS.REJECTED;
+      // Both a real reject and a return end this execution's job. A return keeps
+      // the parent approval IN_PROGRESS (see below) so the applicant can
+      // resubmit, which starts a fresh execution under the same approvals row.
+      jobStatus = JOB_STATUS.REJECTED;
     }
 
     const approvalId = processor.execution?.context?.approvalId;
@@ -249,33 +298,62 @@ export default class ApprovalInstruction extends Instruction {
       where: { approvalId, executionId: job.executionId },
     });
 
-    // On resolve/reject, finalize the parent approval's status.
-    if (jobStatus === JOB_STATUS.RESOLVED || jobStatus === JOB_STATUS.REJECTED) {
+    if (jobStatus === JOB_STATUS.RESOLVED) {
+      // Approved → finalize the approval.
       const ApprovalRepo = this.workflow.app.db.getRepository(APPROVAL_COLLECTION);
       await ApprovalRepo.update({
         filterByTk: approvalId,
         values: { status: APPROVAL_STATUS.FINISHED },
       });
-    }
-
-    // Link this round's records to the previous round via prevRecordId when a
-    // return happened (the audit chain). The actual job-status for a return
-    // stays PENDING so the workflow engine routes to returnToNodeKey.
-    if (returnedRecord) {
-      const prevRound = await RecordRepo.findOne({
-        where: { approvalId, id: { $ne: record_id(records, returnedRecord) } },
-        order: [['createdAt', 'DESC']],
+      // Notify the applicant of the result (§4.6 done).
+      await this.notifyApplicant(approvalId, 'approved', node.title);
+    } else if (jobStatus === JOB_STATUS.REJECTED && !returnedRecord) {
+      // A real reject finalizes the approval as finished. A return leaves the
+      // approval IN_PROGRESS so the applicant can resubmit.
+      const ApprovalRepo = this.workflow.app.db.getRepository(APPROVAL_COLLECTION);
+      await ApprovalRepo.update({
+        filterByTk: approvalId,
+        values: { status: APPROVAL_STATUS.FINISHED },
       });
-      if (prevRound) {
-        await returnedRecord.update({ prevRecordId: prevRound.get('id') });
-      }
+      // Notify the applicant of the rejection (§4.6 done).
+      await this.notifyApplicant(approvalId, 'rejected', node.title);
+    } else if (returnedRecord) {
+      // A return notifies the applicant to modify and resubmit.
+      await this.notifyApplicant(approvalId, 'returned', node.title);
     }
 
     job.set({ status: jobStatus });
     return job;
   }
-}
 
-function record_id(records: any[], target: any): number | string {
-  return target.get('id');
+  /**
+   * Send a done/result notification to the approval's applicant. Resolves the
+   * applicant id from the approvals row (createdById) and dispatches via the
+   * generic notify() with the 'done' message type. Best-effort.
+   */
+  private async notifyApplicant(
+    approvalId: number | string | null,
+    outcome: string,
+    title: string | undefined,
+  ): Promise<void> {
+    if (approvalId == null) {
+      return;
+    }
+    try {
+      const ApprovalRepo = this.workflow.app.db.getRepository(APPROVAL_COLLECTION);
+      const approval = await ApprovalRepo.findOne({ filterByTk: approvalId });
+      const applicantId = approval ? Number(approval.get('createdById')) : null;
+      if (!applicantId) {
+        return;
+      }
+      await this.notify([applicantId], APPROVAL_MSG_TYPE.DONE, {
+        approvalId,
+        title,
+        status: outcome,
+        applicantId,
+      });
+    } catch {
+      // Best-effort: never block the flow on notification.
+    }
+  }
 }

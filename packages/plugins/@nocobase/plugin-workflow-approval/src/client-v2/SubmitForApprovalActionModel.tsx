@@ -29,7 +29,26 @@ type ActionGroupModelClass = ModelConstructor & {
   registerActionModels?: (models: Record<string, ModelConstructor>) => void;
 };
 
-function getRecordKey(record: any, collection: any): unknown {
+/** A business record row keyed by an arbitrary key (id or composite). */
+type RecordRow = Record<string, unknown>;
+
+/** Minimal collection shape read by getRecordKey. */
+interface CollectionLike {
+  name?: string;
+  filterTargetKey: string | string[];
+}
+
+/** Minimal step-handler context shape used by the submit handler. */
+interface SubmitHandlerCtx {
+  blockModel?: { resource?: unknown; collection?: CollectionLike };
+  record?: RecordRow;
+  api: { request: (config: Record<string, unknown>) => Promise<unknown> };
+  t: (key: string, opts?: Record<string, unknown>) => string;
+  message: { error: (msg: string) => void };
+  exit: () => void;
+}
+
+function getRecordKey(record: RecordRow | undefined, collection: CollectionLike | undefined): unknown {
   if (!record || !collection) {
     return null;
   }
@@ -78,7 +97,7 @@ SubmitForApprovalActionModel.registerFlow({
           },
         },
       },
-      async handler(ctx: any, params: any) {
+      async handler(ctx: SubmitHandlerCtx, params: { workflowId?: unknown }) {
         const { resource, collection } = ctx.blockModel ?? {};
         if (!resource || !collection) {
           ctx.exit();
@@ -122,8 +141,11 @@ export async function registerSubmitForApprovalAction(flowEngine: FlowEngine) {
   // flow-engine plugin, which may not have loaded yet when this runs. The async
   // version awaits the class becoming available (per custom-action-trigger's
   // pattern). Falls back to sync if the async API is unavailable.
-  if (typeof (flowEngine as any).getModelClassAsync === 'function') {
-    await (flowEngine as any).getModelClassAsync('RecordActionGroupModel');
+  const engine = flowEngine as FlowEngine & {
+    getModelClassAsync?: (name: string) => Promise<unknown>;
+  };
+  if (typeof engine.getModelClassAsync === 'function') {
+    await engine.getModelClassAsync('RecordActionGroupModel');
   }
   const recordActionGroup = flowEngine.getModelClass('RecordActionGroupModel') as ActionGroupModelClass | undefined;
   recordActionGroup?.registerActionModels?.({ SubmitForApprovalActionModel });

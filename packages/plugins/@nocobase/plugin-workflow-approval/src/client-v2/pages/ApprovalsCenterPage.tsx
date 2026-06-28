@@ -20,8 +20,14 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React, { useState } from 'react';
 
-import { APPROVAL_RECORD_COLLECTION, APPROVAL_RECORD_STATUS } from '../../common/constants';
+import {
+  APPROVAL_COLLECTION,
+  APPROVAL_RECORD_COLLECTION,
+  APPROVAL_RECORD_STATUS,
+  APPROVAL_STATUS,
+} from '../../common/constants';
 import { NAMESPACE } from '../../common/constants';
+import { FieldDiff } from '../components/FieldDiff';
 import { useT } from '../locale';
 
 const { Text } = Typography;
@@ -32,10 +38,20 @@ type ApprovalRecord = {
   title?: string;
   status?: number;
   comment?: string;
+  changes?: unknown;
   userId?: number;
   approvalId?: number;
   createdAt?: string;
   approval?: { data?: Record<string, unknown>; records?: ApprovalRecord[] };
+};
+
+type ApprovalSubmission = {
+  id: number | string;
+  status?: number;
+  collectionName?: string;
+  dataKey?: string;
+  createdAt?: string;
+  data?: Record<string, unknown>;
 };
 
 function statusLabel(status: number, t: (k: string) => string): string {
@@ -50,6 +66,19 @@ function statusLabel(status: number, t: (k: string) => string): string {
       return t('Processed');
     default:
       return String(status);
+  }
+}
+
+function approvalStatusLabel(status: number | undefined, t: (k: string) => string): string {
+  switch (status) {
+    case APPROVAL_STATUS.IN_PROGRESS:
+      return t('In progress');
+    case APPROVAL_STATUS.FINISHED:
+      return t('Finished');
+    case APPROVAL_STATUS.WITHDRAWN:
+      return t('Withdrawn');
+    default:
+      return status == null ? '' : String(status);
   }
 }
 
@@ -104,14 +133,8 @@ function ApprovalDetail({ record, onClose }: { record: ApprovalRecord; onClose: 
                   <Text type="secondary">{r.comment}</Text>
                 </div>
               ) : null}
-              {/* Data change diff (§4.2): render changes if the approver recorded any. */}
-              {r.changes ? (
-                <div style={{ marginTop: 4 }}>
-                  <Text type="secondary" code>
-                    {JSON.stringify(r.changes)}
-                  </Text>
-                </div>
-              ) : null}
+              {/* Field-level change diff (§4.2): populated by the resubmit action. */}
+              <FieldDiff changes={r.changes} />
             </div>
           ),
         }))}
@@ -208,10 +231,160 @@ function RecordTable({ status }: { status: number }) {
   );
 }
 
+/**
+ * Applicant's "My submissions" tab. Lists approvals created by the current user
+ * and exposes a "Resubmit" action when an approval has been returned (§8.3).
+ *
+ * The resubmit button is shown for approvals in IN_PROGRESS that have at least
+ * one returned record. The server re-checks ownership + state, so a stale UI
+ * cannot trigger an invalid resubmit.
+ */
+function SubmissionTable() {
+  const t = useT();
+  const { api } = useFlowContext();
+  const [page, setPage] = useState(1);
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<ApprovalSubmission | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const { data, loading } = useRequest(
+    async () => {
+      const resp = await api.resource(APPROVAL_COLLECTION).listSubmitted({
+        page,
+        pageSize: DEFAULT_PAGE_SIZE,
+        sort: ['-createdAt'],
+      });
+      return resp.data;
+    },
+    { refreshDeps: [page, reloadKey] },
+  );
+
+  const resubmit = async () => {
+    if (!selected) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.resource(APPROVAL_COLLECTION, selected.id).resubmit();
+      message.success(t('Approval resubmitted'));
+      setOpen(false);
+      setReloadKey((k) => k + 1);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const withdraw = async () => {
+    if (!selected) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.resource(APPROVAL_COLLECTION, selected.id).withdraw();
+      message.success(t('Approval withdrawn'));
+      setOpen(false);
+      setReloadKey((k) => k + 1);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const columns: ColumnsType<ApprovalSubmission> = [
+    {
+      title: t('Approval status'),
+      dataIndex: 'status',
+      key: 'status',
+      render: (s: number | undefined) => approvalStatusLabel(s, t),
+    },
+    {
+      title: t('Collection'),
+      dataIndex: 'collectionName',
+      key: 'collectionName',
+    },
+    { title: t('Data key'), dataIndex: 'dataKey', key: 'dataKey' },
+    {
+      title: t('Created at'),
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (v: string) => (v ? dayjs(v).format(DATE_FORMAT) : ''),
+    },
+    {
+      title: '',
+      key: 'action',
+      render: (_, r) => (
+        <Button
+          type="link"
+          onClick={() => {
+            setSelected(r);
+            setOpen(true);
+          }}
+        >
+          {t('Approval records')}
+        </Button>
+      ),
+    },
+  ];
+
+  // A returned approval is IN_PROGRESS; the precise "has returned record" check
+  // happens server-side, so we offer the button for any IN_PROGRESS approval and
+  // surface the server error if the applicant acts on a stale row.
+  const canResubmit = selected?.status === APPROVAL_STATUS.IN_PROGRESS;
+
+  return (
+    <>
+      <Table
+        loading={loading}
+        columns={columns}
+        dataSource={data?.data ?? []}
+        rowKey="id"
+        pagination={{
+          current: page,
+          pageSize: DEFAULT_PAGE_SIZE,
+          total: data?.meta?.count ?? 0,
+          onChange: setPage,
+        }}
+      />
+      <Drawer open={open} onClose={() => setOpen(false)} width={520} title={t('Approval records')}>
+        <DrawerFormLayout>
+          {selected ? (
+            <>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <div>
+                  <Text type="secondary">{t('Approval status')}: </Text>
+                  <Text>{approvalStatusLabel(selected.status, t)}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{t('Collection')}: </Text>
+                  <Text>{selected.collectionName ?? ''}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{t('Data key')}: </Text>
+                  <Text>{selected.dataKey ?? ''}</Text>
+                </div>
+              </Space>
+              {canResubmit ? (
+                <Space style={{ marginTop: 16 }}>
+                  <Button type="primary" loading={busy} onClick={resubmit}>
+                    {t('Resubmit')}
+                  </Button>
+                  <Button danger loading={busy} onClick={withdraw}>
+                    {t('Withdraw')}
+                  </Button>
+                </Space>
+              ) : null}
+            </>
+          ) : null}
+        </DrawerFormLayout>
+      </Drawer>
+    </>
+  );
+}
+
 export default function ApprovalsCenterPage() {
   const t = useT();
   return (
-    <ExtendCollectionsProvider collections={[APPROVAL_RECORD_COLLECTION]}>
+    <ExtendCollectionsProvider collections={[APPROVAL_RECORD_COLLECTION, APPROVAL_COLLECTION]}>
       <Tabs
         defaultActiveKey="pending"
         items={[
@@ -220,6 +393,11 @@ export default function ApprovalsCenterPage() {
             key: 'processed',
             label: t('Processed'),
             children: <RecordTable status={APPROVAL_RECORD_STATUS.APPROVED} />,
+          },
+          {
+            key: 'submissions',
+            label: t('My submissions'),
+            children: <SubmissionTable />,
           },
         ]}
       />

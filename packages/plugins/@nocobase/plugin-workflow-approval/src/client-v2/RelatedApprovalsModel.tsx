@@ -30,6 +30,19 @@ import React from 'react';
 
 const DATE_FORMAT = 'YYYY-MM-DD HH:mm';
 
+/** A compact approval row as returned by the relatedApprovals:list action. */
+interface ApprovalRow {
+  id: number | string;
+  status?: number;
+  workflowKey?: string;
+  applicantRoleName?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+/** Minimal shape of the BlockModel onInit options we read. */
+type InitOptions = Record<string, unknown>;
+
 /** Human-readable label for the reverse-engineered approval status enum. */
 function statusTag(status: number): { color: string; text: string } {
   switch (status) {
@@ -46,14 +59,14 @@ function statusTag(status: number): { color: string; text: string } {
 
 export class RelatedApprovalsModel extends BlockModel {
   /** Loaded approval rows (observable array; mutate in place to trigger renders). */
-  items: any[] = observable([]);
+  items: ApprovalRow[] = observable([]);
   private loading = observable.box(false);
 
-  onInit(options: any): void {
+  onInit(options: InitOptions): void {
     super.onInit?.(options);
     // Fetch once the model is attached to a context. onInit is sync, so we kick
     // the async load off and let it populate `items` (observable) when done.
-    void this.loadItems();
+    this.loadItems();
   }
 
   /** Resolve the current business record from the page view and fetch approvals. */

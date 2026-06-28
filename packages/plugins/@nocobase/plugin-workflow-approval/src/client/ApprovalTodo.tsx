@@ -23,6 +23,17 @@ import { lang, NAMESPACE, usePluginTranslation } from '../locale';
 
 const { Text } = Typography;
 
+/** A compact approval-record row as used by the v1 todo detail drawer. */
+interface ApprovalRecordRow {
+  id: number | string;
+  status: number;
+  userId?: number;
+  comment?: string;
+  changes?: unknown;
+  user?: { nickname?: string };
+  approval?: { data?: Record<string, unknown>; records?: ApprovalRecordRow[] };
+}
+
 /** Human-readable label for an approval record status (reverse-engineered enum). */
 function statusLabel(status: number): string {
   switch (status) {
@@ -39,7 +50,7 @@ function statusLabel(status: number): string {
   }
 }
 
-export function ApprovalDetail({ record, onClose }: { record: any; onClose: () => void }) {
+export function ApprovalDetail({ record, onClose }: { record: ApprovalRecordRow; onClose: () => void }) {
   const api = useAPIClient();
   const { t } = usePluginTranslation();
   const [comment, setComment] = useState('');
@@ -78,7 +89,7 @@ export function ApprovalDetail({ record, onClose }: { record: any; onClose: () =
         </>
       ) : null}
       <Timeline
-        items={(record.approval?.records ?? []).map((r: any) => ({
+        items={(record.approval?.records ?? []).map((r: ApprovalRecordRow) => ({
           color: r.status === APPROVAL_RECORD_STATUS.APPROVED ? 'green' : r.status < 0 ? 'red' : 'blue',
           children: (
             <div>

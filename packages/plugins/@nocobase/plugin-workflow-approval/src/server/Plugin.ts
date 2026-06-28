@@ -33,7 +33,8 @@ import WorkflowPlugin from '@nocobase/plugin-workflow';
 import * as approvalActions from './actions';
 import ApprovalTrigger from './ApprovalTrigger';
 import ApprovalInstruction from './ApprovalInstruction';
-import { APPROVAL_COLLECTION, TRIGGER_TYPE, INSTRUCTION_TYPE } from '../common/constants';
+import { seedDefaultMsgTpls } from './seedMsgTpls';
+import { APPROVAL_COLLECTION, APPROVAL_MSG_TPL_COLLECTION, TRIGGER_TYPE, INSTRUCTION_TYPE } from '../common/constants';
 
 /** Business collections known to have approval workflows configured. */
 const APPROVED_BUSINESS_COLLECTIONS = ['quotations', 'orders'];
@@ -45,9 +46,13 @@ export default class PluginWorkflowApprovalServer extends Plugin {
       name: APPROVAL_COLLECTION,
       actions: approvalActions,
     });
-    this.app.acl.allow(APPROVAL_COLLECTION, ['list', 'get', 'listMine'], 'loggedIn');
-    // submit/approve/reject/return require a logged-in user (finer ACL via snippets).
-    this.app.acl.allow(APPROVAL_COLLECTION, ['submit', 'approve', 'reject', 'returnBack'], 'loggedIn');
+    this.app.acl.allow(APPROVAL_COLLECTION, ['list', 'get', 'listMine', 'listSubmitted'], 'loggedIn');
+    // submit/approve/reject/return/resubmit/withdraw require a logged-in user (finer ACL via snippets).
+    this.app.acl.allow(
+      APPROVAL_COLLECTION,
+      ['submit', 'approve', 'reject', 'returnBack', 'resubmit', 'withdraw'],
+      'loggedIn',
+    );
 
     // 2. Register trigger + instruction with the workflow plugin.
     const workflowPlugin = this.app.pm.get(WorkflowPlugin) as WorkflowPlugin;
@@ -64,6 +69,18 @@ export default class PluginWorkflowApprovalServer extends Plugin {
   }
 
   /**
+   * Seed the default todo/done message templates (§2.6) on first install so
+   * notifications work out of the box. Existing rows (including production data)
+   * are never overwritten — we only insert when a given type is absent.
+   */
+  async install() {
+    const Repo = this.app.db.getRepository(APPROVAL_MSG_TPL_COLLECTION);
+    if (Repo) {
+      await seedDefaultMsgTpls(Repo);
+    }
+  }
+
+  /**
    * Expose each business record's approvals under a `relatedApprovals`
    * association so the record-detail 审批 tab works.
    *
@@ -71,13 +88,8 @@ export default class PluginWorkflowApprovalServer extends Plugin {
    * `<collection>.relatedApprovals:list`. When a request hits
    * `/<collection>/:sourceId/relatedApprovals:list`, the resourcer resolves the
    * action name to `<collection>.relatedApprovals:list` and dispatches our
-   * handler (per Resourcer.getAction's "local action" lookup), which reads
-   * approvals directly by the polymorphic key (collectionName + dataKey).
-   *
-   * We intentionally do NOT rely on a runtime `hasMany` association field: the
-   * `approvals` target is a runtime-defined collection without a metadata row,
-   * and the default list action's `db.getRepository(name, sourceId)` returns
-   * undefined for it. A bespoke action avoids that entirely.
+   * handler, which reads approvals directly by the polymorphic key
+   * (collectionName + dataKey) via the approvals repository.
    */
   private registerRelatedApprovals() {
     for (const collectionName of APPROVED_BUSINESS_COLLECTIONS) {
@@ -94,28 +106,21 @@ export default class PluginWorkflowApprovalServer extends Plugin {
           ctx.action.params.resourceIndex;
         const page = Number(ctx.action.params.page ?? 1);
         const pageSize = Number(ctx.action.params.pageSize ?? 20);
-        const sequelize = ctx.db.sequelize;
+        const Repo = ctx.db.getRepository(APPROVAL_COLLECTION);
+        if (!Repo) {
+          ctx.body = { data: [], meta: { count: 0, page, pageSize } };
+          await next();
+          return;
+        }
         // Query approvals by the polymorphic key (collectionName + dataKey).
-        // We escape the two scalar inputs and inline them into the query: the
-        // runtime-defined approvals collection mis-resolves through the standard
-        // repository filter path and through sequelize bind/replacement params
-        // (both return 0 rows), while this raw path returns the correct rows.
-        const escapeLiteral = (val: string) => `'${String(val).replace(/'/g, "''")}'`;
-        const collLit = escapeLiteral(collectionName);
-        const keyLit = escapeLiteral(String(sourceId));
-        const limitLit = Number.isFinite(pageSize) ? pageSize : 20;
-        const offsetLit = Number.isFinite((page - 1) * pageSize) ? (page - 1) * pageSize : 0;
-        const [countRows] = await sequelize.query(
-          `SELECT count(*)::int AS count FROM approvals WHERE "collectionName" = ${collLit} AND "dataKey" = ${keyLit}`,
-        );
-        const total = (countRows[0] as { count?: number })?.count ?? 0;
-        const [rows] = await sequelize.query(
-          `SELECT * FROM approvals WHERE "collectionName" = ${collLit} AND "dataKey" = ${keyLit} ORDER BY "createdAt" DESC LIMIT ${limitLit} OFFSET ${offsetLit}`,
-        );
-        ctx.body = {
-          data: rows,
-          meta: { count: total, page, pageSize },
-        };
+        const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 20;
+        const [rows, count] = await Repo.findAndCount({
+          filter: { collectionName, dataKey: String(sourceId) },
+          offset: (page - 1) * safePageSize,
+          limit: safePageSize,
+          sort: ['-createdAt'],
+        });
+        ctx.body = { data: rows, meta: { count, page, pageSize: safePageSize } };
         await next();
       });
 

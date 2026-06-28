@@ -31,10 +31,12 @@ export function useSubmitForApprovalActionProps() {
   const record = useRecord();
   const { t } = useTranslation();
   // The configured approval workflow id is stored on the action's x-action-settings.
+  // `this` is bound by the v1 action framework to those settings.
+  type ActionSettings = { workflowId?: string | number; collectionName?: string };
   return {
-    async onClick() {
-      const workflowId = (this as any)?.workflowId;
-      const collectionName = record?.__collectionName || (this as any)?.collectionName;
+    async onClick(this: ActionSettings) {
+      const workflowId = this.workflowId;
+      const collectionName = record?.__collectionName || this.collectionName;
       if (!workflowId) {
         return;
       }

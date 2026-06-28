@@ -30,7 +30,7 @@ export class PluginWorkflowApprovalClientV2 extends Plugin<Record<string, never>
 
     // Register the "Submit for approval" action model into the v2 record-detail
     // designer. Uses the async class resolver to wait for RecordActionGroupModel.
-    void registerSubmitForApprovalAction(this.app.flowEngine);
+    await registerSubmitForApprovalAction(this.app.flowEngine);
 
     const centerTitle = this.t('Approval center', { ns: NAMESPACE }) as unknown as string;
 
