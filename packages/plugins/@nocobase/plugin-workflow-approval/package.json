@@ -1,6 +1,6 @@
 {
   "name": "@nocobase/plugin-workflow-approval",
-  "version": "2.2.0-beta.7",
+  "version": "2.2.0-beta.8",
   "displayName": "Workflow: Approval",
   "displayName.zh-CN": "工作流：审批",
   "description": "Open-source approval workflow: trigger by submitting a business record for approval, pause at an approval node for approvers to pass/reject/return, with a task center and AI assistance.",
