@@ -4,7 +4,7 @@
   "displayName.zh-CN": "审计日志",
   "description": "Request-level audit logging: persists audit trails from app.auditManager and exposes a read-only audit log viewer.",
   "description.zh-CN": "请求级审计日志：将 app.auditManager 产出的审计记录落库，并提供只读审计日志查看。",
-  "version": "2.2.0-beta.7",
+  "version": "2.2.0-beta.8",
   "license": "AGPL-3.0",
   "main": "./dist/server/index.js",
   "homepage": "https://docs.nocobase.com/handbook/audit-logger",
