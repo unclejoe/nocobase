@@ -8,7 +8,7 @@
  */
 
 /**
- * NocoBase officially recommended models for each LLM provider.
+ * DAN.AI officially recommended models for each LLM provider.
  * These models are tested to ensure quality and compatibility.
  */
 export const recommendedModels: Record<string, { label: string; value: string }[]> = {};

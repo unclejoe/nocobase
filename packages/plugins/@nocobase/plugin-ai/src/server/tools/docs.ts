@@ -67,7 +67,7 @@ export function createDocsSearchTool(plugin: PluginAIServer): ToolsOptions {
     },
     definition: {
       name: 'searchDocs',
-      description: `Run a restricted bash script to search and read NocoBase documentation.
+      description: `Run a restricted bash script to search and read DAN.AI documentation.
 The documentation root is ${DOCS_MOUNT_POINT}, and commands run from that directory.
 Use commands such as rg, find, grep, sed, awk, head, tail, cat, ls, and wc.
 The filesystem is readonly; do not attempt to write files. Keep output focused and prefer reading specific snippets instead of whole large files.
@@ -198,7 +198,7 @@ async function resolveBuiltinDocsDir() {
     return sourceDocsDir;
   }
 
-  throw new Error(`NocoBase documentation directory not found. Checked: ${packageDocsDir}, ${sourceDocsDir}`);
+  throw new Error(`DAN.AI documentation directory not found. Checked: ${packageDocsDir}, ${sourceDocsDir}`);
 }
 
 function truncateOutput(output: string) {
