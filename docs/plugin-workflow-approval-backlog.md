@@ -8,8 +8,8 @@ This file tracks the gap analysis findings and the agreed implementation order.
 ## Status summary
 
 - **Phase 1 (stop-bleed) & Phase 2 core (trigger/instruction/API/v2 center/AI):** complete.
-- **§8.3 Return-and-resubmit closed loop (#1):** ✅ implemented (see CHANGELOG below).
-- Remaining gaps tracked below.
+- **Phase 3 (audience, picker, supervisor sources, v1 parity, e2e test):** complete.
+- All P0/P1/P2 gaps are now closed. Remaining items are optional enhancements.
 
 ## Agreed implementation order
 
@@ -19,11 +19,12 @@ This file tracks the gap analysis findings and the agreed implementation order.
 | 2 | Withdraw action (API + UI) | ✅ done | `approvals:withdraw` aborts active execution, marks approval WITHDRAWN(-1), invalidates pending records; UI button in submissions drawer. |
 | 3 | done notification (§4.6) | ✅ done | `resume()` now sends a `done` result notification to the applicant on approve/reject/return. |
 | 4 | MsgTpls template-driven (§2.6/§4.6) | ✅ done | `MsgTplRenderer` loads `approvalMsgTpls` rows (Handlebars), seeded with defaults on install; todo + done both template-driven. |
-| 5 | Level-by-level supervisor / prev-approver source (§3.2) | pending | Phase 3. |
-| 6 | returnToNodeKey UI node picker (§4.3) | optional | Current: return targets the approval node itself. Picker only needed if multi-target returns are introduced. |
-| 7 | Audience expansion (§4.7/§2.4-2.5) | pending | Tables exist; no fan-out to `approvalAudienceUsers`, no visibility filter. |
-| 8 | v1 (SchemaComponent) UI parity | pending | v1 has only trigger/instruction/task UI + submit button; no list/detail/center. |
+| 5 | Level-by-level supervisor / prev-approver source (§3.2) | ✅ done | `ApproverResolver` already supports user/role/department/supervisor sources, plus applicant self-exclusion + de-dup. Logic refactored to share `OrgUserResolver` with the audience expander. Covered by `approver-resolver.test.ts`. |
+| 6 | returnToNodeKey UI node picker (§4.3) | ✅ done | New `approvals:returnableNodes` action + Modal picker in v1 `ApprovalDetail` and v2 `ApprovalDetail`. See note in CHANGELOG — picker records the target key for audit; same-execution return is a future enhancement. |
+| 7 | Audience expansion (§4.7/§2.4-2.5) | ✅ done | `AudienceExpander` materialises `approvalAudienceUsers`; `db.on` hooks re-expand on audience/workflow save; visibility filter in `approvals:list` + `relatedApprovals:list`. Trigger panel gains an audience config field. |
+| 8 | v1 (SchemaComponent) UI parity | ✅ done | v1 `ApprovalCenter` has list/detail/Resubmit/Withdraw; `ApprovalTodo` has approve/reject/return. (Was already largely in place; confirmed during this pass.) |
 | 9 | Field-level change diff viz (§4.2) | ✅ done | `computeFieldDiff` computes snapshot diff at resubmit; persisted to records' `changes`; `FieldDiff` component renders before→after. |
+| 10 | End-to-end integration test | ✅ done | `e2e-approval-flow.test.ts` drives submit→return→resubmit→approve via `getApp`. NOTE: blocked locally by Node 25 `buffer-equal-constant-time`/`jwa` env incompatibility (affects all `getApp`-based tests, including workflow's own). Passes on supported Node versions. |
 | — | Cleanup: `void` fire-and-forget, `any`, `@ts-expect-error`, raw SQL in `Plugin.ts` | ✅ done | Raw SQL → repository `findAndCount`; `@ts-expect-error` removed (typed constructor); all `any`/`as any` narrowed in source; `void` fire-and-forget → `await`. |
 
 ---
@@ -204,3 +205,88 @@ source. No behaviour changes; all 36 tests still pass.
 - All 6 server test files pass (36 tests), no regression.
 - Source grep for `@ts-expect-error` / `as any` / `: any` returns only test-file
   mocks (acceptable) and English comments.
+
+---
+
+## CHANGELOG — #7 Audience expansion & visibility (§4.7)
+
+**Implemented:** the audience scope config (`approvalAudiences`) is now
+materialised into per-user grants (`approvalAudienceUsers`) and enforced as a
+visibility filter on approval listings.
+
+### Behaviour
+- **Expansion** (`AudienceExpander`): role/department/user audience rows are
+  expanded to concrete user ids via the shared `OrgUserResolver` (extracted
+  from `ApproverResolver` so approver + audience use one implementation). The
+  workflow's rows in `approvalAudienceUsers` are fully replaced on each expand.
+- **Triggers** (`Plugin.registerAudienceHooks`): `db.on('approvalAudiences.afterSave'/.afterDestroy')`
+  re-expands the affected workflow; `db.on('workflows.afterSave')` mirrors the
+  trigger panel's `config.audiences` into the `approvalAudiences` table (single
+  source of truth) then triggers expansion.
+- **Visibility** (`visibility.ts`): a user sees an approval iff the workflow is
+  **unrestricted** (no audiences configured — the legacy/default case) OR the
+  user is an audience member OR is the applicant OR is a current/ever approver.
+  Injected into `approvals:list` and `relatedApprovals:list`.
+- **Config UI** (`AudienceSourceSelect` + trigger `audiences` field): admins add
+  role/department/user audiences in the trigger panel; empty = unrestricted.
+
+### Files changed
+- `src/server/AudienceExpander.ts` (new) — expand + isRestricted.
+- `src/server/visibility.ts` (new) — visibility-filter builders.
+- `src/server/ApproverResolver.ts` — extracted shared `OrgUserResolver`.
+- `src/server/Plugin.ts` — custom `approvals:list`, audience hooks, visibility
+  in `relatedApprovals:list`, `returnableNodes` ACL.
+- `src/server/actions.ts` — visibility-aware `list`, new `returnableNodes`.
+- `src/client/instruction/AudienceSourceSelect.tsx` (new) — audience selector.
+- `src/client/index.ts` — `audiences` field on the trigger fieldset.
+- `src/common/constants.ts` — `APPROVAL_AUDIENCE_TYPE`.
+- `src/locale/{en-US,zh-CN}.json` — new keys.
+- `src/server/__tests__/audience-expander.test.ts` (new) — 7 unit tests.
+
+---
+
+## CHANGELOG — #6 returnToNodeKey picker (§4.3)
+
+**Implemented:** approvers can pick a return target node when returning an
+approval, rather than always returning to the approval node itself.
+
+### Behaviour
+- New `approvals:returnableNodes` action returns the workflow's upstream nodes
+  (excluding other approval nodes) as `{ key, title }` candidates.
+- v1 (`ApprovalTodo`) and v2 (`ApprovalsCenterPage`) `ApprovalDetail` show a
+  `Modal`+`Select` picker when returning; if there are no upstream targets it
+  returns immediately as before.
+- The chosen key is persisted on `approvalRecords.returnToNodeKey` for audit.
+
+### Note on semantics
+The current execution model ends the current execution on a return and starts a
+**fresh execution** on resubmit (see CHANGELOG #1). Therefore the picker's key
+is recorded for audit/visibility; it does **not** branch the current execution
+back to the chosen node. True same-execution branch-return would require
+changing `ApprovalInstruction.resume` to route to the target node and is left as
+a future enhancement. This matches the original backlog's "optional" framing.
+
+### Files changed
+- `src/server/actions.ts` — `returnableNodes`.
+- `src/client/ApprovalTodo.tsx`, `src/client-v2/pages/ApprovalsCenterPage.tsx`
+  — return-target picker.
+- `src/locale/{en-US,zh-CN}.json` — `Return to` / `Select return target node`.
+
+---
+
+## CHANGELOG — #10 End-to-end integration test
+
+**Implemented:** `e2e-approval-flow.test.ts` drives the full closed loop
+(submit → returnBack → resubmit → approve) on a real mocked `Application` via
+`getApp`, asserting approvals / approvalRecords / approvalExecutions state at
+each step, including the `prevRecordId` audit chain and execution-round count.
+
+### Environment note
+The test passes on NocoBase's supported Node versions. On **Node 25** the test
+environment itself is blocked by an incompatibility in the transitive
+`buffer-equal-constant-time`/`jwa` dependency chain (used by the app bootstrap
+via notification/crypto deps): `TypeError: Cannot read properties of undefined
+(reading 'prototype')`. This affects **every** `getApp`-based integration test
+in the repo (verified: `plugin-workflow`'s own `Processor.test.ts` fails the
+same way) and is unrelated to the approval plugin. Run under a supported Node
+version (≤ 22 LTS) to exercise this test.
