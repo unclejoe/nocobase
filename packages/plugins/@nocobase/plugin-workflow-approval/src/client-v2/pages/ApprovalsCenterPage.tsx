@@ -15,7 +15,7 @@
 import { DEFAULT_PAGE_SIZE, DrawerFormLayout, ExtendCollectionsProvider, Table } from '@nocobase/client-v2';
 import { useFlowContext } from '@nocobase/flow-engine';
 import { useRequest } from 'ahooks';
-import { Button, Drawer, Input, Space, Tabs, Timeline, Typography, message } from 'antd';
+import { Button, Drawer, Input, Modal, Select, Space, Tabs, Timeline, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React, { useState } from 'react';
@@ -87,13 +87,40 @@ function ApprovalDetail({ record, onClose }: { record: ApprovalRecord; onClose: 
   const { api } = useFlowContext();
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
+  const [returnTargets, setReturnTargets] = useState<{ key: string; title: string }[] | null>(null);
+  const [returnTarget, setReturnTarget] = useState<string | undefined>(undefined);
 
-  const act = async (action: 'approve' | 'reject' | 'returnBack') => {
+  const act = async (action: 'approve' | 'reject' | 'returnBack', extra?: { returnToNodeKey?: string }) => {
     setBusy(true);
     try {
-      await api.resource('approvals', record.id)[action]({ values: { comment } });
+      await api.resource('approvals', record.id)[action]({
+        values: { comment, ...(extra?.returnToNodeKey ? { returnToNodeKey: extra.returnToNodeKey } : {}) },
+      });
       message.success(t('Approval submitted successfully'));
       onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Return flow (§4.3 / backlog #6): ask the server which nodes the approver
+  // may return to. When only the implicit default exists (no upstream nodes),
+  // return immediately as before; otherwise pop a small selector.
+  const onReturn = async () => {
+    if (returnTargets !== null) {
+      setReturnTargets(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      const resp = await api.resource('approvals', record.id).returnableNodes();
+      const nodes: { key: string; title: string }[] = resp?.data?.data ?? [];
+      if (nodes.length === 0) {
+        await act('returnBack');
+      } else {
+        setReturnTargets(nodes);
+        setReturnTarget(nodes[0]?.key);
+      }
     } finally {
       setBusy(false);
     }
@@ -154,10 +181,32 @@ function ApprovalDetail({ record, onClose }: { record: ApprovalRecord; onClose: 
         <Button danger loading={busy} onClick={() => act('reject')}>
           {t('Reject')}
         </Button>
-        <Button loading={busy} onClick={() => act('returnBack')}>
+        <Button loading={busy} onClick={onReturn}>
           {t('Return')}
         </Button>
       </Space>
+      <Modal
+        open={returnTargets !== null}
+        title={t('Return to')}
+        okText={t('Return')}
+        cancelText={t('Cancel')}
+        onCancel={() => setReturnTargets(null)}
+        confirmLoading={busy}
+        onOk={() => {
+          const key = returnTarget;
+          setReturnTargets(null);
+          return act('returnBack', key ? { returnToNodeKey: key } : undefined);
+        }}
+      >
+        <div style={{ marginBottom: 8 }}>{t('Select return target node')}</div>
+        <Select
+          style={{ width: '100%' }}
+          value={returnTarget}
+          onChange={setReturnTarget}
+          options={(returnTargets ?? []).map((n) => ({ label: n.title || n.key, value: n.key }))}
+          aria-label={t('Return to')}
+        />
+      </Modal>
     </Drawer>
   );
 }
