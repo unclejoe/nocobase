@@ -34,7 +34,13 @@ import * as approvalActions from './actions';
 import ApprovalTrigger from './ApprovalTrigger';
 import ApprovalInstruction from './ApprovalInstruction';
 import { seedDefaultMsgTpls } from './seedMsgTpls';
-import { APPROVAL_COLLECTION, APPROVAL_MSG_TPL_COLLECTION, TRIGGER_TYPE, INSTRUCTION_TYPE } from '../common/constants';
+import {
+  APPROVAL_COLLECTION,
+  APPROVAL_MSG_TPL_COLLECTION,
+  APPROVAL_RECORD_COLLECTION,
+  TRIGGER_TYPE,
+  INSTRUCTION_TYPE,
+} from '../common/constants';
 
 /** Business collections known to have approval workflows configured. */
 const APPROVED_BUSINESS_COLLECTIONS = ['quotations', 'orders'];
@@ -47,6 +53,20 @@ export default class PluginWorkflowApprovalServer extends Plugin {
       actions: approvalActions,
     });
     this.app.acl.allow(APPROVAL_COLLECTION, ['list', 'get', 'listMine', 'listSubmitted'], 'loggedIn');
+
+    // The `approvals` resource above carries listMine/listSubmitted via the
+    // wildcard `import * as approvalActions`, but those actions run against the
+    // resource they are invoked on. listMine filters approvalRecords by userId
+    // (the approver's inbox) and is called by the client as
+    // `api.resource('approvalRecords').listMine(...)`, so it must be reachable
+    // on the approvalRecords resource. Define approvalRecords as a resource
+    // exposing listMine (the collection itself is auto-defined by the db, so
+    // only the action + ACL are needed).
+    this.app.resourceManager.define({
+      name: APPROVAL_RECORD_COLLECTION,
+      actions: { listMine: approvalActions.listMine },
+    });
+    this.app.acl.allow(APPROVAL_RECORD_COLLECTION, ['listMine'], 'loggedIn');
     // submit/approve/reject/return/resubmit/withdraw require a logged-in user (finer ACL via snippets).
     this.app.acl.allow(
       APPROVAL_COLLECTION,

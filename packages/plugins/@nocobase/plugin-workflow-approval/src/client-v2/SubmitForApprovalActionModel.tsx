@@ -103,7 +103,27 @@ SubmitForApprovalActionModel.registerFlow({
           ctx.exit();
           return;
         }
-        const workflowId = params.workflowId;
+        let workflowId = params.workflowId;
+        // The selectWorkflow step's RemoteSelect form only renders when the
+        // designer attaches the full step UI. When the button is added without
+        // that UI (e.g. programmatically), fall back to auto-resolving the
+        // single enabled approval workflow bound to this collection, so the
+        // submit still works instead of dead-ending on "Please select a workflow".
+        if (!workflowId) {
+          try {
+            const resp = await ctx.api.request({
+              url: 'workflows:list',
+              params: {
+                filter: { $and: [{ type: 'approval' }, { enabled: true }, { 'config.collection': collection.name }] },
+                fields: ['id'],
+                pageSize: 1,
+              },
+            });
+            workflowId = resp?.data?.data?.[0]?.id;
+          } catch {
+            workflowId = undefined;
+          }
+        }
         if (!workflowId) {
           ctx.message.error(ctx.t('Please select an approval workflow', { ns: NAMESPACE }));
           ctx.exit();

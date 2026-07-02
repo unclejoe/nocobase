@@ -21,13 +21,17 @@ import WorkflowPlugin, { Trigger } from '@nocobase/plugin-workflow/client';
 
 import ApprovalInstructionClient from './instruction';
 import approvalTodo from './ApprovalTodo';
+import ApprovalCenter from './ApprovalCenter';
 import {
   SubmitForApprovalAction,
   submitForApprovalActionInitializer,
   useSubmitForApprovalActionProps,
 } from './SubmitForApprovalInitializer';
 import { RelatedApprovalsModel } from '../client-v2/RelatedApprovalsModel';
-import { registerSubmitForApprovalAction } from '../client-v2/SubmitForApprovalActionModel';
+import {
+  SubmitForApprovalActionModel,
+  registerSubmitForApprovalAction,
+} from '../client-v2/SubmitForApprovalActionModel';
 import { lang } from '../locale';
 import { INSTRUCTION_TYPE, TASK_TYPE_APPROVAL, TRIGGER_TYPE } from '../common/constants';
 
@@ -63,10 +67,41 @@ export default class PluginWorkflowApprovalClient extends Plugin {
     workflow.registerTrigger(TRIGGER_TYPE, ApprovalTriggerClient);
     workflow.registerTaskType(TASK_TYPE_APPROVAL, approvalTodo);
 
-    // Register the FlowModel class backing the 审批 tab's related-approvals
-    // list block. Without this, the tab throws
-    // "Model class 'RelatedApprovalsModel' not found. Please register it first."
-    this.app.flowEngine.registerModels({ RelatedApprovalsModel });
+    // The v2 client registers its center through the new two-layer
+    // pluginSettingsManager, which is decoupled from this app's v1 settings
+    // registry — so the "Approval center" menu never renders. Register the v1
+    // Approval Center page through the v1 pluginSettingsManager so the entry
+    // appears under Settings and approvers / applicants can reach their tasks.
+    this.app.pluginSettingsManager.add('workflow-approval', {
+      icon: 'CheckSquareOutlined',
+      title: lang('Approval center'),
+      Component: ApprovalCenter,
+      isPinned: true,
+      sort: 310,
+      aclSnippet: 'pm.workflow-approval',
+    });
+
+    // Also expose the Approval Center as a top-level route so it can be linked
+    // from the main navigation menu (审批人不必钻进「设置」找待办) and from the
+    // workbench pending-approval card. The component is the same v1 ApprovalCenter.
+    this.app.router.add('admin.approvals.center', {
+      path: '/admin/approvals/center/:tab?',
+      Component: ApprovalCenter,
+    });
+
+    // Register the FlowModel classes used by the v2 client surface tree but
+    // resolved through this v1-loaded app's shared flowEngine instance.
+    //   - RelatedApprovalsModel backs the 审批 tab's related-approvals list
+    //     block; without it the tab throws
+    //     "Model class 'RelatedApprovalsModel' not found".
+    //   - SubmitForApprovalActionModel must be registered GLOBALLY on the
+    //     flowEngine (not just on RecordActionGroupModel.currentModels via
+    //     registerSubmitForApprovalAction) so that a flowModel node with
+    //     use:"SubmitForApprovalActionModel" can be resolved by the engine's
+    //     getModelClass() — the same path ViewActionModel / EditActionModel
+    //     take. Without this global registration the action node renders
+    //     nothing (the surface projector + engine cannot resolve the class).
+    this.app.flowEngine.registerModels({ RelatedApprovalsModel, SubmitForApprovalActionModel });
 
     // Register the "Submit for approval" action model into the record-detail
     // FlowEngine designer. Uses the async class resolver so it waits for

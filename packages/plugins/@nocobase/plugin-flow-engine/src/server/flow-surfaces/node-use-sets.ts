@@ -79,6 +79,7 @@ export const ACTION_BUTTON_USES = new Set([
   'RecordTriggerWorkflowActionModel',
   'FormTriggerWorkflowActionModel',
   'WorkbenchTriggerWorkflowActionModel',
+  'SubmitForApprovalActionModel',
   'MailSendActionModel',
   'JSCollectionActionModel',
   'JSRecordActionModel',

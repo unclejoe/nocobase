@@ -194,15 +194,30 @@ export default class ApprovalInstruction extends Instruction {
       return null;
     }
     const RecordRepo = this.workflow.app.db.getRepository(APPROVAL_RECORD_COLLECTION);
-    const prev = await RecordRepo.findOne({
-      where: {
-        approvalId,
-        executionId: { $ne: currentExecutionId },
-        status: APPROVAL_RECORD_STATUS.INVALID,
-      },
-      order: [['createdAt', 'DESC']],
-    });
-    return prev ? prev.get('id') : null;
+    // Look up the most recent INVALID record from a *different* execution round.
+    // A previous version used `executionId: { $ne: currentExecutionId }`, but that
+    // operator form crashed with "invalid input syntax for type bigint: [object Object]"
+    // when currentExecutionId arrived as a non-primitive. Fetch prior INVALID rows
+    // for this approval and exclude the current round in-memory — robust to type quirks.
+    const currentId = String(currentExecutionId);
+    let prev: { id: number | string; executionId?: unknown } | null = null;
+    try {
+      prev = await RecordRepo.findOne({
+        where: {
+          approvalId,
+          status: APPROVAL_RECORD_STATUS.INVALID,
+        },
+        order: [['createdAt', 'DESC']],
+      });
+    } catch {
+      return null;
+    }
+    if (!prev) {
+      return null;
+    }
+    // Walk back to the most recent INVALID record that is NOT from the current round.
+    // findOne already returns the latest; if it belongs to the current round there is no prior round.
+    return String(prev.executionId ?? '') === currentId ? null : prev.id;
   }
 
   /**
@@ -224,21 +239,43 @@ export default class ApprovalInstruction extends Instruction {
       if (!notificationServer || typeof notificationServer.send !== 'function') {
         return;
       }
-      for (const userId of recipientIds) {
-        await notificationServer.send({
-          channelName: 'in-app-message',
-          message: {
-            title: message.title,
-            content: message.content,
-            recipientId: userId,
-            data: { approvalId: vars.approvalId },
-          },
-          receivers: { value: recipientIds, type: 'userId' },
-          triggerFrom: 'workflow-approval',
-        });
+      // Resolve the in-app channel by its notificationType. The previous code
+      // hardcoded channelName:'in-app-message', but that is the channel *type*,
+      // not a channel *name* (row name). notification-manager.sendNow() looks
+      // channels up by name, so the bare type string never matched and the send
+      // failed silently with reason "channel not found". Look up the real row.
+      const channelRepo = this.workflow.app.db.getRepository('notificationChannels');
+      const channel = channelRepo
+        ? await channelRepo.findOne({ filter: { notificationType: 'in-app-message' } })
+        : null;
+      if (!channel) {
+        // No in-app channel configured; nothing to deliver. Best-effort.
+        return;
       }
-    } catch {
-      // Notification is best-effort; never block the approval flow on it.
+      // Single send() call fans out to every recipient (the in-app channel
+      // bulk-inserts one notificationInAppMessages row per userId). The prior
+      // per-user loop with receivers: recipientIds sent N^2 messages.
+      await notificationServer.send({
+        channelName: channel.get('name'),
+        message: {
+          title: message.title,
+          content: message.content,
+          data: { approvalId: vars.approvalId },
+          // The inbox client (MessageList) reads options.url: a leading "/"
+          // navigates in-app; otherwise it treats it as an external URL.
+          // Send approvers/applicant straight to the approval center. Use the
+          // settings path because it renders cleanly under the admin layout
+          // (the /admin/approvals/center v1 route gets a stray "Not Found" view
+          // from the layout's 2-segment path resolver).
+          options: { url: '/admin/settings/workflow-approval' },
+        },
+        receivers: { value: recipientIds, type: 'userId' },
+        triggerFrom: 'workflow-approval',
+      });
+    } catch (err) {
+      // Best-effort: never block the approval flow on a notification failure,
+      // but log so a future regression doesn't fail silently again.
+      this.workflow.app.log.warn('approval notification failed', { error: String((err as Error)?.message ?? err) });
     }
   }
 
