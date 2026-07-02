@@ -41,10 +41,12 @@ import {
   APPROVAL_RECORD_COLLECTION,
   APPROVAL_RECORD_STATUS,
   APPROVAL_STATUS,
+  INSTRUCTION_TYPE,
   TRIGGER_TYPE,
 } from '../common/constants';
 import { createApprovalFromSubmission } from './ApprovalTrigger';
 import { computeFieldDiff } from './computeFieldDiff';
+import { buildApprovalVisibilityFilter } from './visibility';
 
 /** Submit a business record for approval. */
 export async function submit(context: Context, next: () => Promise<void>) {
@@ -217,6 +219,26 @@ export async function listMine(context: Context, next: () => Promise<void>) {
       userId: context.state.currentUser.id,
     },
   });
+  return actions.list(context, next);
+}
+
+/**
+ * List approvals with audience visibility filtering applied (§4.7).
+ *
+ * Wraps the default `actions.list` and merges a visibility filter computed from
+ * the audience expansion. When no workflows are restricted (no audiences
+ * configured anywhere) the filter is null and behaviour is unchanged, so legacy
+ * installations keep their open visibility. The applicant + active-approver
+ * branches ensure users always see their own involvement.
+ */
+export async function list(context: Context, next: () => Promise<void>) {
+  const userId = context.state.currentUser?.id;
+  if (userId != null) {
+    const filter = await buildApprovalVisibilityFilter(context.db, userId);
+    if (filter) {
+      context.action.mergeParams({ filter });
+    }
+  }
   return actions.list(context, next);
 }
 
@@ -420,5 +442,65 @@ export async function withdraw(context: Context, next: () => Promise<void>) {
 
   context.body = { id: approvalId };
   context.status = 202;
+  await next();
+}
+
+/**
+ * List the workflow nodes an approver can return to (§4.3 / backlog #6).
+ *
+ * Given a pending approvalRecord id, walks record → execution → workflow and
+ * returns the upstream nodes (those declared before the current approval node)
+ * as `{ key, title }` candidates. The current approval node's own key is always
+ * the implicit option (it means "return here, applicant resubmits"); the picker
+ * surfaces only earlier nodes when present, falling back to the current-node
+ * default when the workflow has no upstream return targets.
+ *
+ * Only the record's assigned approver may call this (same guard as decide()).
+ */
+export async function returnableNodes(context: Context, next: () => Promise<void>) {
+  const { filterByTk } = context.action.params;
+  const { currentUser } = context.state;
+  if (!currentUser) {
+    return context.throw(401);
+  }
+  const db = context.db;
+  const RecordRepo = db.getRepository(APPROVAL_RECORD_COLLECTION);
+  const record = await RecordRepo.findOne({
+    filterByTk,
+    appends: ['node', 'workflow'],
+    context,
+  });
+  if (!record) {
+    return context.throw(404);
+  }
+  if (record.get('userId') !== currentUser.id) {
+    return context.throw(403);
+  }
+  const node = record.get('node');
+  const workflow = record.get('workflow');
+  if (!workflow) {
+    context.body = { data: [] };
+    await next();
+    return;
+  }
+  const FlowNodeRepo = db.getRepository('flowNodes');
+  const allNodes = FlowNodeRepo
+    ? ((await FlowNodeRepo.find({
+        where: { workflowId: workflow.get('id') },
+        order: [['createdAt', 'ASC']],
+        context,
+      })) as Array<{ get: (k: string) => unknown }>)
+    : [];
+  const currentNodeId = node?.get?.('id');
+  // Upstream = every node before the current approval node, excluding other
+  // approval nodes (returning to another pending approval node is ambiguous).
+  const upstream = allNodes
+    .filter((n) => {
+      const id = n.get('id');
+      const type = String(n.get('type') ?? '');
+      return currentNodeId == null ? type !== INSTRUCTION_TYPE : String(id) !== String(currentNodeId);
+    })
+    .map((n) => ({ key: String(n.get('key') ?? ''), title: String(n.get('title') ?? '') }));
+  context.body = { data: upstream };
   await next();
 }

@@ -21,6 +21,10 @@
  * resolved (e.g. the department has no owner, or a referenced role is gone),
  * that source contributes nothing — we do NOT guess. Callers decide whether
  * an empty result is an error (see ApprovalInstruction.run).
+ *
+ * The role/department → userId expansion is shared with the audience feature
+ * (§4.7); it lives in {@link OrgUserResolver} below so both ApproverResolver
+ * and AudienceExpander reuse one implementation.
  */
 
 import type { Database } from '@nocobase/database';
@@ -29,14 +33,115 @@ import { APPROVER_SOURCE } from '../common/constants';
 export interface ApproverConfigItem {
   /** One of APPROVER_SOURCE. */
   source: string;
-  /** Meaning depends on source: userId (user), roleId (role), departmentId (department). Ignored for supervisor. */
+  /** Meaning depends on source: userId (user), roleName (role, the string `name`), departmentId (department). Ignored for supervisor. */
   targetId?: number | string;
   /** For department source: only count main members. */
   onlyMain?: boolean;
 }
 
-export class ApproverResolver {
+/**
+ * OrgUserResolver — shared read-only org-data → userId expansion.
+ *
+ * Used by both ApproverResolver (approver sources) and AudienceExpander
+ * (audience sources). Both map role/department kinds to concrete user ids via
+ * the same repository queries, so the logic is centralised here to avoid
+ * divergence. All methods return [] when the referenced entity is gone or the
+ * repository is absent — callers decide whether empty is an error.
+ */
+export class OrgUserResolver {
   constructor(private db: Database) {}
+
+  /** A directly-specified user id (passthrough, normalised to a number). */
+  directUser(targetId: number | string | undefined): number[] {
+    return targetId != null ? [Number(targetId)] : [];
+  }
+
+  /** All users holding the given role (rolesUsers join). */
+  async byRole(roleName: number | string | undefined, transaction?: unknown): Promise<number[]> {
+    if (roleName == null) {
+      return [];
+    }
+    const RolesUsers = this.db.getRepository('rolesUsers');
+    if (!RolesUsers) {
+      return [];
+    }
+    // NocoBase's rolesUsers join table keys on `roleName` (the roles table PK is
+    // the string `name`, not an id). The client selectors already pass role.name
+    // as the target, so query by roleName here.
+    const rows = await RolesUsers.find({
+      filter: { roleName },
+      attributes: ['userId'],
+      ...(transaction ? { transaction } : {}),
+    });
+    return rows.map((r) => r.get('userId')).filter(Boolean) as number[];
+  }
+
+  /** All users in the given department (optionally only main members). */
+  async byDepartment(
+    departmentId: number | string | undefined,
+    onlyMain?: boolean,
+    transaction?: unknown,
+  ): Promise<number[]> {
+    if (departmentId == null) {
+      return [];
+    }
+    const DepartmentsUsers = this.db.getRepository('departmentsUsers');
+    if (!DepartmentsUsers) {
+      return [];
+    }
+    const filter: Record<string, unknown> = { departmentId };
+    if (onlyMain) {
+      filter.isMain = true;
+    }
+    const rows = await DepartmentsUsers.find({
+      filter,
+      attributes: ['userId'],
+      ...(transaction ? { transaction } : {}),
+    });
+    return rows.map((r) => r.get('userId')).filter(Boolean) as number[];
+  }
+
+  /**
+   * Direct supervisor: the owner (isOwner=true) of the applicant's main
+   * department. Returns nothing if the applicant has no main department or
+   * that department has no owner.
+   */
+  async supervisorOf(applicantUserId: number | string | null | undefined, transaction?: unknown): Promise<number[]> {
+    if (applicantUserId == null) {
+      return [];
+    }
+    const Users = this.db.getRepository('users');
+    if (!Users) {
+      return [];
+    }
+    const applicant = await Users.findOne({
+      filter: { id: applicantUserId },
+      attributes: ['mainDepartmentId'],
+      ...(transaction ? { transaction } : {}),
+    });
+    const mainDeptId = applicant?.get('mainDepartmentId');
+    if (mainDeptId == null) {
+      return [];
+    }
+    const DepartmentsUsers = this.db.getRepository('departmentsUsers');
+    if (!DepartmentsUsers) {
+      return [];
+    }
+    const owners = await DepartmentsUsers.find({
+      filter: { departmentId: mainDeptId, isOwner: true },
+      attributes: ['userId'],
+      ...(transaction ? { transaction } : {}),
+    });
+    return owners.map((r) => r.get('userId')).filter(Boolean) as number[];
+  }
+}
+
+export class ApproverResolver {
+  private org: OrgUserResolver;
+
+  constructor(db: Database) {
+    this.org = new OrgUserResolver(db);
+  }
 
   /**
    * Resolve all configured approver sources to a de-duplicated list of user ids.
@@ -71,92 +176,19 @@ export class ApproverResolver {
   ): Promise<Array<number | string>> {
     switch (item.source) {
       case APPROVER_SOURCE.USER:
-        return item.targetId != null ? [item.targetId] : [];
+        return this.org.directUser(item.targetId);
 
       case APPROVER_SOURCE.ROLE:
-        return this.resolveByRole(item.targetId);
+        return this.org.byRole(item.targetId);
 
       case APPROVER_SOURCE.DEPARTMENT:
-        return this.resolveByDepartment(item.targetId, item.onlyMain);
+        return this.org.byDepartment(item.targetId, item.onlyMain);
 
       case APPROVER_SOURCE.SUPERVISOR:
-        return this.resolveSupervisor(applicantUserId);
+        return this.org.supervisorOf(applicantUserId);
 
       default:
         return [];
     }
-  }
-
-  /** All users holding the given role (rolesUsers join). */
-  private async resolveByRole(roleId: number | string | undefined): Promise<Array<number | string>> {
-    if (roleId == null) {
-      return [];
-    }
-    const RolesUsers = this.db.getRepository('rolesUsers');
-    if (!RolesUsers) {
-      return [];
-    }
-    const rows = await RolesUsers.find({
-      where: { roleId },
-      attributes: ['userId'],
-    });
-    return rows.map((r) => r.get('userId')).filter(Boolean);
-  }
-
-  /** All users in the given department (optionally only main members). */
-  private async resolveByDepartment(
-    departmentId: number | string | undefined,
-    onlyMain?: boolean,
-  ): Promise<Array<number | string>> {
-    if (departmentId == null) {
-      return [];
-    }
-    const DepartmentsUsers = this.db.getRepository('departmentsUsers');
-    if (!DepartmentsUsers) {
-      return [];
-    }
-    const where: Record<string, unknown> = { departmentId };
-    if (onlyMain) {
-      where.isMain = true;
-    }
-    const rows = await DepartmentsUsers.find({
-      where,
-      attributes: ['userId'],
-    });
-    return rows.map((r) => r.get('userId')).filter(Boolean);
-  }
-
-  /**
-   * Direct supervisor: the owner (isOwner=true) of the applicant's main
-   * department. Returns nothing if the applicant has no main department or
-   * that department has no owner.
-   */
-  private async resolveSupervisor(
-    applicantUserId: number | string | null | undefined,
-  ): Promise<Array<number | string>> {
-    if (applicantUserId == null) {
-      return [];
-    }
-    const Users = this.db.getRepository('users');
-    if (!Users) {
-      return [];
-    }
-    const applicant = await Users.findOne({
-      where: { id: applicantUserId },
-      attributes: ['mainDepartmentId'],
-    });
-    const mainDeptId = applicant?.get('mainDepartmentId');
-    if (mainDeptId == null) {
-      return [];
-    }
-    const DepartmentsUsers = this.db.getRepository('departmentsUsers');
-    if (!DepartmentsUsers) {
-      return [];
-    }
-    const owners = await DepartmentsUsers.find({
-      where: { departmentId: mainDeptId, isOwner: true },
-      attributes: ['userId'],
-    });
-    return owners.map((r) => r.get('userId')).filter(Boolean);
   }
 }

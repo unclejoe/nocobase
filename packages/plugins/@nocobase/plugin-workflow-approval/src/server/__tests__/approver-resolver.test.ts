@@ -55,7 +55,7 @@ describe('ApproverResolver', () => {
     const find = vi.fn(async (q: any) => {
       // Simulate onlyMain filtering at the repo level.
       const rows = [{ get: () => 11 }, { get: () => 12 }, { get: () => 13 }];
-      return q.where?.isMain ? rows.slice(0, 1) : rows;
+      return q.filter?.isMain ? rows.slice(0, 1) : rows;
     });
     const db = makeDb({ departmentsUsers: { find } });
     resolver = new ApproverResolver(db);

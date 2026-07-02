@@ -34,7 +34,10 @@ import * as approvalActions from './actions';
 import ApprovalTrigger from './ApprovalTrigger';
 import ApprovalInstruction from './ApprovalInstruction';
 import { seedDefaultMsgTpls } from './seedMsgTpls';
+import { AudienceExpander } from './AudienceExpander';
+import { canViewApproval } from './visibility';
 import {
+  APPROVAL_AUDIENCE_COLLECTION,
   APPROVAL_COLLECTION,
   APPROVAL_MSG_TPL_COLLECTION,
   APPROVAL_RECORD_COLLECTION,
@@ -48,9 +51,11 @@ const APPROVED_BUSINESS_COLLECTIONS = ['quotations', 'orders'];
 export default class PluginWorkflowApprovalServer extends Plugin {
   async load() {
     // 1. Resource + ACL for the approvals API.
+    //    The custom `list` action wraps actions.list with audience visibility
+    //    filtering (§4.7); the bare default would return everything.
     this.app.resourceManager.define({
       name: APPROVAL_COLLECTION,
-      actions: approvalActions,
+      actions: { ...approvalActions, list: approvalActions.list },
     });
     this.app.acl.allow(APPROVAL_COLLECTION, ['list', 'get', 'listMine', 'listSubmitted'], 'loggedIn');
 
@@ -70,7 +75,7 @@ export default class PluginWorkflowApprovalServer extends Plugin {
     // submit/approve/reject/return/resubmit/withdraw require a logged-in user (finer ACL via snippets).
     this.app.acl.allow(
       APPROVAL_COLLECTION,
-      ['submit', 'approve', 'reject', 'returnBack', 'resubmit', 'withdraw'],
+      ['submit', 'approve', 'reject', 'returnBack', 'resubmit', 'withdraw', 'returnableNodes'],
       'loggedIn',
     );
 
@@ -80,12 +85,15 @@ export default class PluginWorkflowApprovalServer extends Plugin {
     workflowPlugin.registerInstruction(INSTRUCTION_TYPE, new ApprovalInstruction(workflowPlugin));
 
     // 3. Expose a `relatedApprovals` association on each business collection so
-    //    the record-detail 审批 tab can list an record's approvals. We attach a
-    //    scoped hasMany (collectionName + dataKey) AND register a custom
-    //    `list` action per business resource, because runtime-defined target
-    //    collections have no metadata row and the default list action fails to
-    //    resolve it. The custom action reads approvals directly.
+    //    the record-detail 审批 tab can list an record's approvals.
     this.registerRelatedApprovals();
+
+    // 4. Audience expansion hooks (§4.7): keep approvalAudienceUsers in sync
+    //    with approvalAudiences. Re-expansion is triggered whenever an audience
+    //    row changes, and whenever an approval workflow is saved (so that
+    //    audiences configured in the trigger panel — synced into the table by
+    //    the afterSave below — get materialised).
+    this.registerAudienceHooks();
   }
 
   /**
@@ -134,18 +142,137 @@ export default class PluginWorkflowApprovalServer extends Plugin {
         }
         // Query approvals by the polymorphic key (collectionName + dataKey).
         const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 20;
-        const [rows, count] = await Repo.findAndCount({
+        const [allRows, count] = await Repo.findAndCount({
           filter: { collectionName, dataKey: String(sourceId) },
           offset: (page - 1) * safePageSize,
           limit: safePageSize,
           sort: ['-createdAt'],
         });
-        ctx.body = { data: rows, meta: { count, page, pageSize: safePageSize } };
+        // Apply audience visibility (§4.7): filter out approvals the current
+        // user cannot view. Without audiences configured this is a no-op.
+        const userId = ctx.state.currentUser?.id;
+        const visible =
+          userId != null
+            ? await Promise.all(
+                allRows.map((row) =>
+                  canViewApproval(
+                    ctx.db,
+                    userId,
+                    row.get('id') as number | string,
+                    row.get('workflowId') as number | string | null,
+                  ).then((ok) => (ok ? row : null)),
+                ),
+              ).then((xs) => xs.filter(Boolean))
+            : allRows;
+        ctx.body = {
+          data: visible,
+          meta: { count: userId != null ? visible.length : count, page, pageSize: safePageSize },
+        };
         await next();
       });
 
       // Allow logged-in users to list related approvals.
       this.app.acl.allow(`${collectionName}.relatedApprovals`, ['list'], 'loggedIn');
     }
+  }
+
+  /**
+   * Wire audience expansion triggers (§4.7):
+   *  - On any approvalAudiences row change → re-expand that workflow.
+   *  - On an approval workflow afterSave → sync the trigger panel's
+   *    `config.audiences` into the approvalAudiences table (the trigger UI
+   *    collects them as a config array; we mirror them into the table so the
+   *    AudienceExpander + visibility layer has a single source of truth).
+   *
+   * Both hooks are best-effort and logged on failure — a stale expansion is
+   * preferable to a failed request.
+   */
+  private registerAudienceHooks() {
+    const db = this.app.db;
+    const expander = new AudienceExpander(db);
+
+    const reexpand = async (workflowId: number | string | null | undefined, transaction?: unknown) => {
+      if (workflowId == null) {
+        return;
+      }
+      try {
+        await expander.expand(workflowId, transaction);
+      } catch (err) {
+        this.app.log.warn('approval audience expansion failed', {
+          workflowId,
+          error: String((err as Error)?.message ?? err),
+        });
+      }
+    };
+
+    // The (instance, options) signature: options carries the active transaction,
+    // so expand() reads the just-saved row within the same tx (otherwise the new
+    // row is invisible and expansion yields nothing on the creating request).
+    db.on(
+      `${APPROVAL_AUDIENCE_COLLECTION}.afterSave`,
+      (instance: { get: (k: string) => unknown }, options?: { transaction?: unknown }) => {
+        return reexpand(instance.get('workflowId') as number | string | null | undefined, options?.transaction);
+      },
+    );
+    db.on(
+      `${APPROVAL_AUDIENCE_COLLECTION}.afterDestroy`,
+      (instance: { get: (k: string) => unknown }, options?: { transaction?: unknown }) => {
+        return reexpand(instance.get('workflowId') as number | string | null | undefined, options?.transaction);
+      },
+    );
+
+    // Sync trigger-panel config.audiences into the approvalAudiences table.
+    // The panel collects an array of { type, targetKey }; we upsert matching
+    // rows and remove any no-longer-present ones, then expansion runs via the
+    // afterSave hook above.
+    db.on('workflows.afterSave', async (instance: { get: (k: string) => unknown }) => {
+      const type = String(instance.get('type') ?? '');
+      if (type !== TRIGGER_TYPE) {
+        return;
+      }
+      const config = (instance.get('config') ?? {}) as {
+        audiences?: Array<{ type: string; targetKey: string | number }>;
+      };
+      const desired = Array.isArray(config.audiences) ? config.audiences : [];
+      const workflowId = instance.get('id') as number | string;
+      const AudienceRepo = db.getRepository(APPROVAL_AUDIENCE_COLLECTION);
+      if (!AudienceRepo) {
+        return;
+      }
+      try {
+        const existing = (await AudienceRepo.find({
+          where: { workflowId },
+        })) as Array<{ get: (k: string) => unknown }>;
+        const existingKeys = new Set(existing.map((r) => `${String(r.get('type'))}:${String(r.get('targetKey'))}`));
+        const desiredKeys = new Set(desired.map((a) => `${String(a.type)}:${String(a.targetKey)}`));
+        // Remove rows no longer configured.
+        const stale = existing.filter(
+          (r) => !desiredKeys.has(`${String(r.get('type'))}:${String(r.get('targetKey'))}`),
+        );
+        for (const r of stale) {
+          await AudienceRepo.destroy({ filterByTk: r.get('id') });
+        }
+        // Insert newly-added rows.
+        const toAdd = desired.filter((a) => !existingKeys.has(`${String(a.type)}:${String(a.targetKey)}`));
+        if (toAdd.length) {
+          await AudienceRepo.create({
+            records: toAdd.map((a) => ({
+              workflowId,
+              type: String(a.type),
+              targetKey: String(a.targetKey),
+            })),
+          });
+        }
+        // If nothing changed (no add/remove), still ensure expansion is current.
+        if (!stale.length && !toAdd.length) {
+          await reexpand(workflowId);
+        }
+      } catch (err) {
+        this.app.log.warn('approval audience sync failed', {
+          workflowId,
+          error: String((err as Error)?.message ?? err),
+        });
+      }
+    });
   }
 }

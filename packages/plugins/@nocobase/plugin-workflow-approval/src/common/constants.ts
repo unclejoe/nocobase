@@ -106,3 +106,17 @@ export const APPROVAL_MSG_TYPE = {
   TODO: 'todo',
   DONE: 'done',
 } as const;
+
+/**
+ * approvalAudiences.type — the kind of an audience membership row (§4.7).
+ * Mirrors the approver source kinds but excludes supervisor (audiences are
+ * absolute, not applicant-relative).
+ */
+export const APPROVAL_AUDIENCE_TYPE = {
+  /** Directly specified user id. */
+  USER: 'user',
+  /** All users with a given role. */
+  ROLE: 'role',
+  /** All users in a given department. */
+  DEPARTMENT: 'department',
+} as const;

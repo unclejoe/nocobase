@@ -20,6 +20,7 @@ import { Plugin } from '@nocobase/client';
 import WorkflowPlugin, { Trigger } from '@nocobase/plugin-workflow/client';
 
 import ApprovalInstructionClient from './instruction';
+import { AudienceSourceSelect } from './instruction/AudienceSourceSelect';
 import approvalTodo from './ApprovalTodo';
 import ApprovalCenter from './ApprovalCenter';
 import {
@@ -43,6 +44,9 @@ class ApprovalTriggerClient extends Trigger {
     'Triggered when a record is submitted for approval. The workflow then routes the request to approvers and drives the approval flow.',
   );
   type = TRIGGER_TYPE;
+  // The audience selector component is referenced by the `audiences` field
+  // below via x-component name.
+  components = { AudienceSourceSelect };
   fieldset = {
     collection: {
       type: 'string',
@@ -54,6 +58,40 @@ class ApprovalTriggerClient extends Trigger {
         service: { resource: 'collections' },
         fieldNames: { label: 'title', value: 'name' },
         manual: false,
+      },
+    },
+    // Audience scope (§4.7): restricts who can view this workflow's approvals.
+    // Left empty (default) the workflow is visible to everyone — the legacy
+    // behaviour. The afterSave hook in Plugin.ts mirrors these into the
+    // approvalAudiences table for the visibility filter to consume.
+    audiences: {
+      type: 'array',
+      title: lang('Audience'),
+      description: lang(
+        "Who can view this workflow's approvals. Leave empty to keep approvals visible to all logged-in users.",
+      ),
+      'x-decorator': 'FormItem',
+      'x-component': 'ArrayItems',
+      'x-component-props': { className: 'wf-approval-audiences' },
+      items: {
+        type: 'object',
+        properties: {
+          sort: { type: 'void', 'x-component': 'ArrayItems.SortHandle' },
+          audience: {
+            type: 'object',
+            'x-component': 'AudienceSourceSelect',
+            'x-decorator': 'FormItem',
+            default: { type: 'user' },
+          },
+          remove: { type: 'void', 'x-component': 'ArrayItems.Remove' },
+        },
+      },
+      properties: {
+        add: {
+          type: 'void',
+          title: lang('Add audience'),
+          'x-component': 'ArrayItems.Addition',
+        },
       },
     },
   };

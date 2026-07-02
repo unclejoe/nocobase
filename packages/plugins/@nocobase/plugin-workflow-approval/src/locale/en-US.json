@@ -52,5 +52,10 @@
   "Approval analytics": "Approval analytics",
   "AI recommend approve": "AI recommend approve",
   "Needs human review": "Needs human review",
-  "Approval assistant": "Approval assistant"
+  "Approval assistant": "Approval assistant",
+  "Audience": "Audience",
+  "Add audience": "Add audience",
+  "Who can view this workflow's approvals. Leave empty to keep approvals visible to all logged-in users.": "Who can view this workflow's approvals. Leave empty to keep approvals visible to all logged-in users.",
+  "Return to": "Return to",
+  "Select return target node": "Select return target node"
 }

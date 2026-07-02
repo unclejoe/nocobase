@@ -52,5 +52,10 @@
   "Approval analytics": "审批分析",
   "AI recommend approve": "AI 建议通过",
   "Needs human review": "需人工审核",
-  "Approval assistant": "审批助手"
+  "Approval assistant": "审批助手",
+  "Audience": "可见范围",
+  "Add audience": "添加可见对象",
+  "Who can view this workflow's approvals. Leave empty to keep approvals visible to all logged-in users.": "可查看该工作流审批单的对象。留空则对所有登录用户可见。",
+  "Return to": "退回到",
+  "Select return target node": "选择退回目标节点"
 }
