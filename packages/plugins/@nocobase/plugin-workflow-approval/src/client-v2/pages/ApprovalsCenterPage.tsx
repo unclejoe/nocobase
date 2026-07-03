@@ -272,7 +272,7 @@ function RecordTable({ status }: { status: number }) {
         }}
       />
       <Drawer open={open} onClose={() => setOpen(false)} width={520}>
-        <DrawerFormLayout>
+        <DrawerFormLayout title={t('Approval detail')}>
           {selected ? <ApprovalDetail record={selected} onClose={() => setOpen(false)} /> : null}
         </DrawerFormLayout>
       </Drawer>
@@ -395,7 +395,7 @@ function SubmissionTable() {
         }}
       />
       <Drawer open={open} onClose={() => setOpen(false)} width={520} title={t('Approval records')}>
-        <DrawerFormLayout>
+        <DrawerFormLayout title={t('Approval records')}>
           {selected ? (
             <>
               <Space direction="vertical" style={{ width: '100%' }}>
@@ -433,7 +433,7 @@ function SubmissionTable() {
 export default function ApprovalsCenterPage() {
   const t = useT();
   return (
-    <ExtendCollectionsProvider collections={[APPROVAL_RECORD_COLLECTION, APPROVAL_COLLECTION]}>
+    <ExtendCollectionsProvider collections={[{ name: APPROVAL_RECORD_COLLECTION }, { name: APPROVAL_COLLECTION }]}>
       <Tabs
         defaultActiveKey="pending"
         items={[

@@ -27,7 +27,7 @@
  * and AudienceExpander reuse one implementation.
  */
 
-import type { Database } from '@nocobase/database';
+import type { Database, Transaction } from '@nocobase/database';
 import { APPROVER_SOURCE } from '../common/constants';
 
 export interface ApproverConfigItem {
@@ -57,7 +57,7 @@ export class OrgUserResolver {
   }
 
   /** All users holding the given role (rolesUsers join). */
-  async byRole(roleName: number | string | undefined, transaction?: unknown): Promise<number[]> {
+  async byRole(roleName: number | string | undefined, transaction?: Transaction): Promise<number[]> {
     if (roleName == null) {
       return [];
     }
@@ -80,7 +80,7 @@ export class OrgUserResolver {
   async byDepartment(
     departmentId: number | string | undefined,
     onlyMain?: boolean,
-    transaction?: unknown,
+    transaction?: Transaction,
   ): Promise<number[]> {
     if (departmentId == null) {
       return [];
@@ -106,7 +106,10 @@ export class OrgUserResolver {
    * department. Returns nothing if the applicant has no main department or
    * that department has no owner.
    */
-  async supervisorOf(applicantUserId: number | string | null | undefined, transaction?: unknown): Promise<number[]> {
+  async supervisorOf(
+    applicantUserId: number | string | null | undefined,
+    transaction?: Transaction,
+  ): Promise<number[]> {
     if (applicantUserId == null) {
       return [];
     }

@@ -316,7 +316,7 @@ export async function resubmit(context: Context, next: () => Promise<void>) {
   const dataKey = approval.get('dataKey');
   const targetCollection = db.getCollection(collectionName);
   const targetRepo = targetCollection ? db.getRepository(collectionName) : null;
-  let snapshot: Record<string, unknown> | null = null;
+  let snapshot: { toJSON: () => Record<string, unknown> } | null = null;
   if (targetRepo) {
     const associationFields = Array.from(targetCollection.fields.values())
       .filter(

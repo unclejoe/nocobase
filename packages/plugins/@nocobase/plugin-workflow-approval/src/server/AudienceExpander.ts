@@ -30,7 +30,7 @@
  * considered restricted.
  */
 
-import type { Database } from '@nocobase/database';
+import type { Database, Transaction } from '@nocobase/database';
 import { OrgUserResolver } from './ApproverResolver';
 import {
   APPROVAL_AUDIENCE_COLLECTION,
@@ -59,7 +59,7 @@ export class AudienceExpander {
    * WITHOUT writing the database. Pure and easily unit-testable. Returns []
    * when the config is empty or only references missing entities.
    */
-  async expandUserIds(audiences: AudienceRow[], transaction?: unknown): Promise<number[]> {
+  async expandUserIds(audiences: AudienceRow[], transaction?: Transaction): Promise<number[]> {
     const result = new Set<number>();
     for (const a of audiences) {
       const targetId = a.targetKey;
@@ -85,7 +85,7 @@ export class AudienceExpander {
    * Returns the inserted user ids (handy for callers/tests). A no-op when the
    * audience collection or its repository is unavailable.
    */
-  async expand(workflowId: number | string, transaction?: unknown): Promise<number[]> {
+  async expand(workflowId: number | string, transaction?: Transaction): Promise<number[]> {
     const AudienceRepo = this.db.getRepository(APPROVAL_AUDIENCE_COLLECTION);
     const AudienceUserRepo = this.db.getRepository(APPROVAL_AUDIENCE_USER_COLLECTION);
     if (!AudienceRepo || !AudienceUserRepo) {
@@ -126,7 +126,7 @@ export class AudienceExpander {
     if (!AudienceRepo) {
       return false;
     }
-    const count = await AudienceRepo.count({ where: { workflowId } });
+    const count = await AudienceRepo.count({ filter: { workflowId } });
     return Number(count) > 0;
   }
 }

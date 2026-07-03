@@ -232,13 +232,19 @@ export default class ApprovalInstruction extends Instruction {
     }
     try {
       const message = await renderNotification(this.workflow.app.db, msgType, vars);
-      // Lazy-require to avoid a hard dependency at plugin load time.
+      // Lazy-require to avoid a hard dependency at plugin load time. The base
+      // Plugin type returned by pm.get() has no `send`, so narrow to a minimal
+      // structural interface that mirrors PluginNotificationManagerServer.send.
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const NotificationsServerPlugin = require('@nocobase/plugin-notification-manager').default;
-      const notificationServer = this.workflow.app.pm.get(NotificationsServerPlugin);
-      if (!notificationServer || typeof notificationServer.send !== 'function') {
+      const raw = this.workflow.app.pm.get(NotificationsServerPlugin) as unknown as
+        | { send: (opts: Record<string, unknown>) => Promise<unknown> }
+        | null
+        | undefined;
+      if (!raw || typeof raw.send !== 'function') {
         return;
       }
+      const notificationServer = raw;
       // Resolve the in-app channel by its notificationType. The previous code
       // hardcoded channelName:'in-app-message', but that is the channel *type*,
       // not a channel *name* (row name). notification-manager.sendNow() looks
@@ -332,7 +338,7 @@ export default class ApprovalInstruction extends Instruction {
               ? APPROVAL_EXECUTION_STATUS.INTERRUPTED
               : null,
       },
-      where: { approvalId, executionId: job.executionId },
+      filter: { approvalId, executionId: job.executionId },
     });
 
     if (jobStatus === JOB_STATUS.RESOLVED) {
@@ -359,7 +365,7 @@ export default class ApprovalInstruction extends Instruction {
       await this.notifyApplicant(approvalId, 'returned', node.title);
     }
 
-    job.set({ status: jobStatus });
+    job.status = jobStatus;
     return job;
   }
 

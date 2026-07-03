@@ -28,6 +28,7 @@
  */
 
 import { Plugin } from '@nocobase/server';
+import type { Transaction } from '@nocobase/database';
 import WorkflowPlugin from '@nocobase/plugin-workflow';
 
 import * as approvalActions from './actions';
@@ -191,7 +192,7 @@ export default class PluginWorkflowApprovalServer extends Plugin {
     const db = this.app.db;
     const expander = new AudienceExpander(db);
 
-    const reexpand = async (workflowId: number | string | null | undefined, transaction?: unknown) => {
+    const reexpand = async (workflowId: number | string | null | undefined, transaction?: Transaction) => {
       if (workflowId == null) {
         return;
       }
@@ -210,13 +211,13 @@ export default class PluginWorkflowApprovalServer extends Plugin {
     // row is invisible and expansion yields nothing on the creating request).
     db.on(
       `${APPROVAL_AUDIENCE_COLLECTION}.afterSave`,
-      (instance: { get: (k: string) => unknown }, options?: { transaction?: unknown }) => {
+      (instance: { get: (k: string) => unknown }, options?: { transaction?: Transaction }) => {
         return reexpand(instance.get('workflowId') as number | string | null | undefined, options?.transaction);
       },
     );
     db.on(
       `${APPROVAL_AUDIENCE_COLLECTION}.afterDestroy`,
-      (instance: { get: (k: string) => unknown }, options?: { transaction?: unknown }) => {
+      (instance: { get: (k: string) => unknown }, options?: { transaction?: Transaction }) => {
         return reexpand(instance.get('workflowId') as number | string | null | undefined, options?.transaction);
       },
     );
@@ -250,13 +251,13 @@ export default class PluginWorkflowApprovalServer extends Plugin {
           (r) => !desiredKeys.has(`${String(r.get('type'))}:${String(r.get('targetKey'))}`),
         );
         for (const r of stale) {
-          await AudienceRepo.destroy({ filterByTk: r.get('id') });
+          await AudienceRepo.destroy({ filterByTk: r.get('id') as string | number });
         }
         // Insert newly-added rows.
         const toAdd = desired.filter((a) => !existingKeys.has(`${String(a.type)}:${String(a.targetKey)}`));
         if (toAdd.length) {
           await AudienceRepo.create({
-            records: toAdd.map((a) => ({
+            values: toAdd.map((a) => ({
               workflowId,
               type: String(a.type),
               targetKey: String(a.targetKey),

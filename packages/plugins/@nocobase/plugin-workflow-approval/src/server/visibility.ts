@@ -52,7 +52,7 @@ export async function resolveAudienceScope(
     attributes: ['workflowId'],
     group: ['workflowId'],
   })) as Array<{ get: (k: string) => unknown }>;
-  const restricted = restrictedRows.map((r) => r.get('workflowId')).filter((x) => x != null);
+  const restricted = restrictedRows.map((r) => r.get('workflowId')).filter((x): x is number | string => x != null);
   if (restricted.length === 0) {
     return null;
   }
@@ -61,7 +61,7 @@ export async function resolveAudienceScope(
     where: { userId },
     attributes: ['workflowId'],
   })) as Array<{ get: (k: string) => unknown }>;
-  const memberOf = memberRows.map((r) => r.get('workflowId')).filter((x) => x != null);
+  const memberOf = memberRows.map((r) => r.get('workflowId')).filter((x): x is number | string => x != null);
   return { restricted, memberOf };
 }
 

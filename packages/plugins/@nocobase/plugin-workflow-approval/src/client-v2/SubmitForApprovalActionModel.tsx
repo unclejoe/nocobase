@@ -42,7 +42,7 @@ interface CollectionLike {
 interface SubmitHandlerCtx {
   blockModel?: { resource?: unknown; collection?: CollectionLike };
   record?: RecordRow;
-  api: { request: (config: Record<string, unknown>) => Promise<unknown> };
+  api: { request: (config: Record<string, unknown>) => Promise<{ data?: { data?: Array<{ id?: number | string }> } }> };
   t: (key: string, opts?: Record<string, unknown>) => string;
   message: { error: (msg: string) => void };
   exit: () => void;
@@ -97,7 +97,7 @@ SubmitForApprovalActionModel.registerFlow({
           },
         },
       },
-      async handler(ctx: SubmitHandlerCtx, params: { workflowId?: unknown }) {
+      async handler(ctx: SubmitHandlerCtx, params: { workflowId?: number | string }) {
         const { resource, collection } = ctx.blockModel ?? {};
         if (!resource || !collection) {
           ctx.exit();

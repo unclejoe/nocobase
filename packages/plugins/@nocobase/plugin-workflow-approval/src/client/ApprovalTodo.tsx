@@ -182,17 +182,27 @@ export function ApprovalDetail({ record, onClose }: { record: ApprovalRecordRow;
 }
 
 /** TaskTypeOptions — registered with workflow.registerTaskType. */
+// Item/Detail are rendered as Formily schema components, where props arrive via
+// the schema/x-component context rather than typed React props. The shared
+// TaskTypeOptions type declares them as React.ComponentType (i.e. accepting
+// { children? }), so the component bodies read their inputs from a loose bag.
 export const approvalTodo = {
   key: TASK_TYPE_APPROVAL,
   title: `{{t("My pending approvals", { ns: "${NAMESPACE}" })}}`,
   collection: APPROVAL_RECORD_COLLECTION,
   action: 'listMine',
-  Item: ({ data, onOpen }) => (
-    <Button type="link" onClick={onOpen}>
-      {data.title}
+  // workflow task center calls useActionParams(status) to obtain the list filter
+  // for the active tab. Pending tab shows records awaiting this user's action;
+  // the history tab shows everything for this user. status: 'pending' | 'history'
+  useActionParams: (status: string) => ({
+    filter: status === 'history' ? {} : { status: APPROVAL_RECORD_STATUS.PENDING },
+  }),
+  Item: ({ data, onOpen }: Record<string, unknown>) => (
+    <Button type="link" onClick={onOpen as (() => void) | undefined}>
+      {(data as { title?: string })?.title}
     </Button>
   ),
-  Detail: ApprovalDetail,
+  Detail: ApprovalDetail as React.ComponentType,
 };
 
 export default approvalTodo;
