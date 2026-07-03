@@ -59,7 +59,7 @@ export const AuditConfigPanel = () => {
   const configReq = useRequest(async () => {
     const res = await api.resource(CONFIG_COLLECTION_NAME).list({ pageSize: -1 });
     return (res?.data?.data as ConfigRow[]) ?? [];
-  }, []);
+  });
 
   // The initial selection derived from saved rows. Recomputed whenever rows
   // reload, so cancelling a toggle and re-fetching snaps back to saved state.

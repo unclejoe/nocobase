@@ -18,8 +18,18 @@
 
 import { ReloadOutlined } from '@ant-design/icons';
 import { AIEmployeeShortcut } from '@nocobase/plugin-ai/client-v2';
-import type { Task } from '@nocobase/plugin-ai/client-v2';
 import { useAIConfigRepository, useChatBoxActions } from '@nocobase/plugin-ai/client';
+
+// Local Task shape matching the v1 plugin-ai Task that useChatBoxActions'
+// triggerTask expects (its `message` is required). The v2 Task makes `message`
+// optional, which the v1 triggerTask signature rejects; importing the v1 Task
+// type via a deep path is unreliable across the package's dist layout, so we
+// re-declare the minimal shape here.
+interface Task {
+  title?: string;
+  message: { system?: string; user?: string };
+  autoSend?: boolean;
+}
 import {
   CollectionFilter,
   DEFAULT_PAGE_SIZE,
