@@ -7,7 +7,7 @@
  * For more information, please refer to: https://www.nocobase.com/agreement.
  */
 
-import { stripMarkdownIframeTags, stripMarkdownIframes } from '@nocobase/client-v2';
+import { stripMarkdownIframeTags, stripMarkdownIframes, useGlobalTheme } from '@nocobase/client-v2';
 import { useFlowContext } from '@nocobase/flow-engine';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Vditor from 'vditor';
@@ -22,6 +22,7 @@ export const Edit = (props) => {
   const { disabled, onChange, value, fileCollection, toolbar, editMode = 'ir', mode } = props;
   const flowCtx = useFlowContext();
   const t = useT();
+  const { isDarkTheme } = useGlobalTheme();
   const [editorReady, setEditorReady] = useState(false);
   const vdRef = useRef<Vditor>();
   const vdFullscreen = useRef(false);
@@ -69,6 +70,9 @@ export const Edit = (props) => {
       cdn,
       minHeight: 200,
       mode: editorMode,
+      // Vditor ships its own light/dark CSS; pick the one matching the active
+      // antd theme so the editor surface (toolbar, borders) blends in.
+      theme: isDarkTheme ? 'dark' : 'classic',
       after: () => {
         vdRef.current = vditor;
         setEditorReady(true);
@@ -172,7 +176,7 @@ export const Edit = (props) => {
       observer.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toolbar?.join(','), editorMode]);
+  }, [toolbar?.join(','), editorMode, isDarkTheme]);
 
   useEffect(() => {
     if (editorReady && vdRef.current) {

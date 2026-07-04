@@ -15,6 +15,7 @@ import {
   useZIndexContext,
   getZIndex,
 } from '@nocobase/client';
+import { useGlobalTheme } from '@nocobase/client-v2';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Vditor from 'vditor';
@@ -27,6 +28,8 @@ const locales = ['en_US', 'fr_FR', 'pt_BR', 'ja_JP', 'ko_KR', 'ru_RU', 'sv_SE', 
 
 export const Edit = withDynamicSchemaProps((props) => {
   const { disabled, onChange, value, fileCollection, toolbar, editMode = 'ir' } = props;
+
+  const { isDarkTheme } = useGlobalTheme();
 
   const [editorReady, setEditorReady] = useState(false);
   const vdRef = useRef<Vditor>();
@@ -72,6 +75,9 @@ export const Edit = withDynamicSchemaProps((props) => {
       cdn,
       minHeight: 200,
       mode: editMode,
+      // Vditor ships its own light/dark CSS; pick the one matching the active
+      // antd theme so the editor surface (toolbar, borders) blends in.
+      theme: isDarkTheme ? 'dark' : 'classic',
       after: () => {
         vdRef.current = vditor;
         setEditorReady(true); // Notify that the editor is ready
@@ -189,7 +195,7 @@ export const Edit = withDynamicSchemaProps((props) => {
       observer.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toolbar?.join(','), editMode]);
+  }, [toolbar?.join(','), editMode, isDarkTheme]);
 
   useEffect(() => {
     if (editorReady && vdRef.current) {
