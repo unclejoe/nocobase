@@ -5586,7 +5586,7 @@
 
 "@langchain/mistralai@1.0.0":
   version "1.0.0"
-  resolved "https://registry.npmmirror.com/@langchain/mistralai/-/mistralai-1.0.0.tgz#5c45a297d1b32a8c8c813d5e315f0ee701b0d8c9"
+  resolved "https://registry.npmjs.org/@langchain/mistralai/-/mistralai-1.0.0.tgz#5c45a297d1b32a8c8c813d5e315f0ee701b0d8c9"
   integrity sha512-gzRjDjGGgd5RApF3pSO1t15nJmnbmutT/XcNfyemmJjL5LhD7+Z0PeMqDshmGdMh/holBo6b7su8aCLGon+X8g==
   dependencies:
     "@mistralai/mistralai" "^1.3.1"
@@ -6412,7 +6412,7 @@
 
 "@mistralai/mistralai@^1.3.1":
   version "1.15.1"
-  resolved "https://registry.npmmirror.com/@mistralai/mistralai/-/mistralai-1.15.1.tgz#ba8f676ebbf6adb2ddd17b8068b9a4859c1fdfcb"
+  resolved "https://registry.npmjs.org/@mistralai/mistralai/-/mistralai-1.15.1.tgz#ba8f676ebbf6adb2ddd17b8068b9a4859c1fdfcb"
   integrity sha512-fb995eiz3r0KsBGtRjFV+/iLbX+UpfalxpF+YitT3R6ukrPD4PN+FGwwmYcRFhNAzVzDUtTVxQYnjQWEnwV5nw==
   dependencies:
     ws "^8.18.0"
@@ -6581,10 +6581,132 @@
   dependencies:
     eslint-scope "5.1.1"
 
+"@nocobase/acl@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/acl/-/acl-2.1.19.tgz#8e228a6de940033e384df04f8276951ec1edc6d0"
+  integrity sha512-7lRB1Kk0YkkiM0008P8demgHgJMOErjpWgkPuN5q5/zjrl4o+6GO4WsX4kGi4cCV++c/cd4EvmrNieEdaICmMw==
+  dependencies:
+    minimatch "^5.1.1"
+
+"@nocobase/actions@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/actions/-/actions-2.1.19.tgz#8893f757843f4fc03117f1b53ea57b98ccd40442"
+  integrity sha512-SHKb4bV4KlchzWf/RwNs03quitKNwW4DX2mtLa5DZjAzOlna+IrJmPGH8rewiAMFP0/qG+3TCDO0RBvR5Mv62Q==
+  dependencies:
+    "@nocobase/cache" "2.1.19"
+    "@nocobase/database" "2.1.19"
+    "@nocobase/resourcer" "2.1.19"
+
 "@nocobase/ai-employee-avatars@^1.0.2":
   version "1.0.2"
   resolved "https://registry.npmmirror.com/@nocobase/ai-employee-avatars/-/ai-employee-avatars-1.0.2.tgz#ae38326df34183b63411109fca8a278d84082819"
   integrity sha512-apNfpMyuST5e7mu9wjzo5q+QWQfzgZ13dFlYxY61DF1qEPhTu1VCnq44d6Hyi0No4skiFmhB8+8b1yp0bH3tKg==
+
+"@nocobase/ai@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/ai/-/ai-2.1.19.tgz#30cae8695d5a8fa57cf766097f9fb61f5ddccdd5"
+  integrity sha512-CTNJnNejY56ZFxdrWwrfl9XgGdeVjKKFSTE4e4HP4uN2ul2850zgcZbvPnyqKLaqeeaOyTfhrTveTthUcRXUGw==
+  dependencies:
+    "@langchain/anthropic" "1.3.17"
+    "@langchain/classic" "1.0.34"
+    "@langchain/community" "1.1.29"
+    "@langchain/core" "1.1.49"
+    "@langchain/deepseek" "1.0.27"
+    "@langchain/google-genai" "2.1.18"
+    "@langchain/langgraph" "1.4.4"
+    "@langchain/langgraph-checkpoint" "1.1.2"
+    "@langchain/mcp-adapters" "1.1.3"
+    "@langchain/ollama" "1.2.7"
+    "@langchain/openai" "1.4.7"
+    "@nocobase/data-source-manager" "2.1.19"
+    "@nocobase/logger" "2.1.19"
+    "@nocobase/resourcer" "2.1.19"
+    "@nocobase/utils" "2.1.19"
+    d3-dsv "2"
+    fast-glob "^3.3.2"
+    flexsearch "^0.8.2"
+    gray-matter "^4.0.3"
+    langchain "1.2.39"
+    mammoth "^1.10.0"
+    officeparser "^5.2.0"
+    pdf-parse "^1.1.1"
+    word-extractor "^1.0.4"
+    xlsx "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+
+"@nocobase/auth@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/auth/-/auth-2.1.19.tgz#a733909838ca7a4e1e1e7c8de5f5be8975597bc2"
+  integrity sha512-DG9kbxWaYTj4wJN0vrITGgu5ewZyZ3S2UHMDhxCHuIRZNSc8IJQYNOSDlkW91qg4hwd/msnpxamrEcSV1pWcmQ==
+  dependencies:
+    "@nocobase/actions" "2.1.19"
+    "@nocobase/cache" "2.1.19"
+    "@nocobase/database" "2.1.19"
+    "@nocobase/resourcer" "2.1.19"
+    "@nocobase/utils" "2.1.19"
+    "@types/jsonwebtoken" "^9.0.9"
+    jsonwebtoken "^9.0.2"
+
+"@nocobase/cache@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/cache/-/cache-2.1.19.tgz#feef907b6d21f350f2cfe85dac9d416244df010d"
+  integrity sha512-S+IVL4zCTOgAZ8na3Vgkz1kiCXmkEJSfAOEYb/T8QzKPDi+mtu+dbTqCWGgyNPhBpxMy86v3oTfEG99FQs+QWw==
+  dependencies:
+    "@nocobase/lock-manager" "2.1.19"
+    bloom-filters "^3.0.1"
+    cache-manager "^5.2.4"
+    cache-manager-redis-yet "^4.1.2"
+
+"@nocobase/data-source-manager@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/data-source-manager/-/data-source-manager-2.1.19.tgz#6ddf02b0ad5bfa794673533d0a344d05a14668ed"
+  integrity sha512-rs79ieOyOfLNFxXC4l8MhgJvG2xIEhGU8gCunuilOepKEv1QDGGDffVx8Ey8QkD19JnOp8zuB1uiF6az3ED9PQ==
+  dependencies:
+    "@nocobase/actions" "2.1.19"
+    "@nocobase/cache" "2.1.19"
+    "@nocobase/database" "2.1.19"
+    "@nocobase/resourcer" "2.1.19"
+    "@nocobase/utils" "2.1.19"
+    "@types/jsonwebtoken" "^8.5.8"
+    jsonwebtoken "^9.0.2"
+
+"@nocobase/database@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/database/-/database-2.1.19.tgz#097f4e8935fc3c02d44bd22759c02307a37979fc"
+  integrity sha512-9hGYD1+s1OM6fD99FN3jUU30zs/T5Wgdy4Jf284nJW4I9SkqPLFlXYKsoQ7v9/3Z2NccyC3nBweNnyNIRAkAkQ==
+  dependencies:
+    "@nocobase/logger" "2.1.19"
+    "@nocobase/utils" "2.1.19"
+    async-mutex "^0.3.2"
+    chalk "^4.1.1"
+    cron-parser "4.4.0"
+    dayjs "^1.11.8"
+    deepmerge "^4.2.2"
+    excel-date-to-js "^1.1.5"
+    exponential-backoff "^3.1.1"
+    flat "^5.0.2"
+    glob "^7.1.6"
+    graphlib "^2.1.8"
+    joi "^17.13.3"
+    lodash "^4.17.21"
+    nanoid "^3.3.11"
+    node-fetch "^2.6.7"
+    node-sql-parser "^4.18.0"
+    qs "^6.11.2"
+    safe-json-stringify "^1.2.0"
+    semver "^7.7.1"
+    sequelize "^6.26.0"
+    umzug "^3.1.1"
+    uuid "^11.1.1"
+
+"@nocobase/evaluators@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/evaluators/-/evaluators-2.1.19.tgz#4ea357d1673c3e78c6933f2342c7bb3fbdec99cc"
+  integrity sha512-F/trz+uq78Kz2KL6TZVzT74oBvA5Tlrz/tonImji+XU1fkCYWgEIT6You6oam9hc5HwfSi55uYhbtbIv6x9/1Q==
+  dependencies:
+    "@formulajs/formulajs" "4.4.9"
+    "@nocobase/utils" "2.1.19"
+    mathjs "^15.1.0"
+    ses "^1.14.0"
 
 "@nocobase/license-kit-android-arm-eabi@0.3.8":
   version "0.3.8"
@@ -6687,6 +6809,177 @@
     "@nocobase/license-kit-win32-arm64-msvc" "0.3.8"
     "@nocobase/license-kit-win32-ia32-msvc" "0.3.8"
     "@nocobase/license-kit-win32-x64-msvc" "0.3.8"
+
+"@nocobase/lock-manager@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/lock-manager/-/lock-manager-2.1.19.tgz#d2b6b42c23cb403641ad389cb1acca2d9cf80fb9"
+  integrity sha512-ZFGD1qpqO0mprapaqPCgcUyWhKKXEQVCdoViTQyCEUxMG/QwWETs+IR0N9mAkrt/A0TzadWwAe6J01Lwar8WlA==
+
+"@nocobase/logger@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/logger/-/logger-2.1.19.tgz#4e54096769c645bbb9583455be6714866be27a87"
+  integrity sha512-48dBQHWEX6bft4lyBobs52+F5ld+gpCHpHRYKkJqlqKLHHQNnss2SxXV8WJ7oOGfZlFeueULgRa+/ANAtJYfCg==
+  dependencies:
+    "@nocobase/utils" "2.1.19"
+    chalk "^4"
+    lodash "^4.17.21"
+    triple-beam "^1.4.1"
+    winston "^3.13.0"
+    winston-daily-rotate-file "^5.0.0"
+    winston-transport "^4.7.0"
+
+"@nocobase/plugin-workflow-test@2.x":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/plugin-workflow-test/-/plugin-workflow-test-2.1.19.tgz#cbba3eb60b74e4a115370660863ea32cf0d24cff"
+  integrity sha512-nelNds7U2ygCvfryKKUC3HjSc/1L+2ZRuON7SU+S78GOxSX1Wt2BdMinNxnJ8bKq7WKzd2e4JP03TO6e40cgkA==
+
+"@nocobase/resourcer@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/resourcer/-/resourcer-2.1.19.tgz#a82918d5f067f05080bc42c3b4aa536a5451da61"
+  integrity sha512-hOOFnATWI6bUqWqKWU0sAouNH5C+AqJlWf3WsFIxqIuVo8epMazISQKNQUHJeBTSOyc2OmU49rm0it4DK40tSw==
+  dependencies:
+    "@nocobase/utils" "2.1.19"
+    deepmerge "^4.2.2"
+    koa-compose "^4.1.0"
+    lodash "^4.17.21"
+    path-to-regexp "^6.3.0"
+    qs "^6.9.4"
+
+"@nocobase/sdk@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/sdk/-/sdk-2.1.19.tgz#2d3c4c5ae0dc06137acdfb768e6938338af3c22c"
+  integrity sha512-fPwtCS9MvUARoKWhDXUCjJhDzE5VKkA2wYJPp1OLQiqWwIaQoqdzWllZVceIl6l3vMI/UO/X3s3y5a1CKofQrA==
+  dependencies:
+    axios "^1.7.0"
+    qs "^6.10.1"
+
+"@nocobase/server@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/server/-/server-2.1.19.tgz#6dbe1b67e888fef6b20889a2410469ce7965207a"
+  integrity sha512-/ktBDFTtfdcbvOfYzDcw0gZucuoWI7fEDcV7zngbPXA+929iFrwE4uIKwcdLvHDteBgdvfLejHbktpCmYvryPg==
+  dependencies:
+    "@formily/json-schema" "2.x"
+    "@hapi/topo" "^6.0.0"
+    "@koa/cors" "^5.0.0"
+    "@koa/multer" "^3.1.0"
+    "@koa/router" "^13.1.0"
+    "@nocobase/acl" "2.1.19"
+    "@nocobase/actions" "2.1.19"
+    "@nocobase/ai" "2.1.19"
+    "@nocobase/auth" "2.1.19"
+    "@nocobase/cache" "2.1.19"
+    "@nocobase/data-source-manager" "2.1.19"
+    "@nocobase/database" "2.1.19"
+    "@nocobase/evaluators" "2.1.19"
+    "@nocobase/lock-manager" "2.1.19"
+    "@nocobase/logger" "2.1.19"
+    "@nocobase/resourcer" "2.1.19"
+    "@nocobase/sdk" "2.1.19"
+    "@nocobase/snowflake-id" "2.1.19"
+    "@nocobase/telemetry" "2.1.19"
+    "@nocobase/utils" "2.1.19"
+    "@types/decompress" "4.2.7"
+    "@types/ini" "^1.3.31"
+    "@types/koa-send" "^4.1.3"
+    "@types/multer" "^1.4.12"
+    async-mutex "^0.5.0"
+    axios "^1.7.0"
+    chalk "^4.1.1"
+    commander "^9.2.0"
+    compression "^1.8.0"
+    cron "^2.4.4"
+    cronstrue "^2.11.0"
+    dayjs "^1.11.8"
+    decompress "4.2.1"
+    find-package-json "^1.2.0"
+    fs-extra "^11.1.1"
+    i18next "^22.4.9"
+    ini "^4.1.1"
+    koa "^3.2.0"
+    koa-bodyparser "^4.3.0"
+    koa-send "^5.0.1"
+    koa-static "^5.0.0"
+    lodash "^4.17.21"
+    multer "^2.1.1"
+    nanoid "^3.3.11"
+    p-queue "^6.6.2"
+    redis "^5.10.0"
+    semver "^7.7.1"
+    serve-handler "^6.1.6"
+    ws "^8.13.0"
+    xpipe "^1.0.5"
+
+"@nocobase/snowflake-id@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/snowflake-id/-/snowflake-id-2.1.19.tgz#1d0aa71b280bf407492920bd37d0b53438de6ee8"
+  integrity sha512-0M3obeRZRMpeD5pYqPnsq9ciHN3b865WSunqLVdnllnbfWET12AAEdqRkzaQO5cfdKu7KB4ex20G0O3wjBUDkg==
+
+"@nocobase/telemetry@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/telemetry/-/telemetry-2.1.19.tgz#2da969d38fa9d18e5c58681d27299b5cc931bf1c"
+  integrity sha512-U9P3C4ehSjZg5fOI59Ip1cop2kyvGkW5i8hJOLduWOhsc2b+OroybZzmehfnbHRdpfyzzVx3CbcbFs9nTa4VBg==
+  dependencies:
+    "@nocobase/utils" "2.1.19"
+    "@opentelemetry/api" "^1.9.0"
+    "@opentelemetry/instrumentation" "^0.207.0"
+    "@opentelemetry/resources" "^2.2.0"
+    "@opentelemetry/sdk-metrics" "^2.2.0"
+    "@opentelemetry/sdk-trace-base" "^2.2.0"
+    "@opentelemetry/sdk-trace-node" "^2.2.0"
+    "@opentelemetry/semantic-conventions" "^1.37.0"
+
+"@nocobase/test@2.x":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/test/-/test-2.1.19.tgz#f4a59e8f040aa75c949e3a569245fc1bf383aabf"
+  integrity sha512-RmRiPSRtd840UJPD8h77cH1hwz8/e5VwQuYxAGQPwddVQMTQEO6wdd/MXX+awgQH9hzCRAYwncK2XsiRFDCTHw==
+  dependencies:
+    "@faker-js/faker" "8.1.0"
+    "@nocobase/server" "2.1.19"
+    "@nocobase/utils" "2.1.19"
+    "@playwright/test" "^1.45.3"
+    "@testing-library/jest-dom" "^6.4.2"
+    "@testing-library/react" "^14.0.0"
+    "@testing-library/react-hooks" "^8.0.1"
+    "@testing-library/user-event" "^14.4.3"
+    "@types/supertest" "^2.0.11"
+    "@vitejs/plugin-react" "^4.0.0"
+    "@vitest/coverage-istanbul" "^1.5.0"
+    "@vitest/coverage-v8" "^1.5.0"
+    axios-mock-adapter "1.22.0"
+    exceljs "^4.4.0"
+    jsdom "^25.0.1"
+    jsdom-worker "^0.3.0"
+    mariadb "^2.5.6"
+    mockjs "^1.1.0"
+    mysql2 "^3.11.0"
+    pg "^8.7.3"
+    pg-hstore "^2.3.4"
+    supertest "^6.1.6"
+    vite "^5.0.0"
+    vitest "^1.5.0"
+    vitest-dom "^0.1.1"
+    ws "^8.13.0"
+
+"@nocobase/utils@2.1.19":
+  version "2.1.19"
+  resolved "https://registry.npmmirror.com/@nocobase/utils/-/utils-2.1.19.tgz#38d017bc99ec5fa87bc296a9aaf5b7f02b20c6d5"
+  integrity sha512-nTLyfJzEd8AvrYSQuW7IdVCR/M5VfaD8uYt/ZDtaFDeTKDAfGdvcpG2h0X3eKxXcx8Mh0DUretUEeIJpdmcKYw==
+  dependencies:
+    "@budibase/handlebars-helpers" "0.14.0"
+    "@hapi/topo" "^6.0.0"
+    "@rc-component/mini-decimal" "^1.1.0"
+    axios "^1.7.0"
+    dayjs "^1.11.9"
+    deepmerge "^4.2.2"
+    flat-to-nested "^1.1.1"
+    fs-extra "^11.1.1"
+    graphlib "^2.1.8"
+    handlebars "^4.7.8"
+    ipaddr.js "^1.9.1"
+    liquidjs "^10.23.0"
+    multer "^2.1.1"
+    object-path "^0.11.8"
+    ses "^1.14.0"
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"
@@ -10644,12 +10937,30 @@
     "@vitest/utils" "1.5.2"
     chai "^4.3.10"
 
+"@vitest/expect@1.6.1":
+  version "1.6.1"
+  resolved "https://registry.npmmirror.com/@vitest/expect/-/expect-1.6.1.tgz#b90c213f587514a99ac0bf84f88cff9042b0f14d"
+  integrity sha512-jXL+9+ZNIJKruofqXuuTClf44eSpcHlgj3CiuNihUF3Ioujtmc0zIa3UJOW5RjDK1YLBJZnWBlPuqhYycLioog==
+  dependencies:
+    "@vitest/spy" "1.6.1"
+    "@vitest/utils" "1.6.1"
+    chai "^4.3.10"
+
 "@vitest/runner@1.5.2":
   version "1.5.2"
   resolved "https://registry.npmmirror.com/@vitest/runner/-/runner-1.5.2.tgz#acc9677aaca5c548e3a2746d97eb443c687f0d6f"
   integrity sha512-7IJ7sJhMZrqx7HIEpv3WrMYcq8ZNz9L6alo81Y6f8hV5mIE6yVZsFoivLZmr0D777klm1ReqonE9LyChdcmw6g==
   dependencies:
     "@vitest/utils" "1.5.2"
+    p-limit "^5.0.0"
+    pathe "^1.1.1"
+
+"@vitest/runner@1.6.1":
+  version "1.6.1"
+  resolved "https://registry.npmmirror.com/@vitest/runner/-/runner-1.6.1.tgz#10f5857c3e376218d58c2bfacfea1161e27e117f"
+  integrity sha512-3nSnYXkVkf3mXFfE7vVyPmi3Sazhb/2cfZGGs0JRzFsPFvAMBEcrweV1V1GsrstdXeKCTXlJbvnQwGWgEIHmOA==
+  dependencies:
+    "@vitest/utils" "1.6.1"
     p-limit "^5.0.0"
     pathe "^1.1.1"
 
@@ -10662,6 +10973,15 @@
     pathe "^1.1.1"
     pretty-format "^29.7.0"
 
+"@vitest/snapshot@1.6.1":
+  version "1.6.1"
+  resolved "https://registry.npmmirror.com/@vitest/snapshot/-/snapshot-1.6.1.tgz#90414451a634bb36cd539ccb29ae0d048a8c0479"
+  integrity sha512-WvidQuWAzU2p95u8GAKlRMqMyN1yOJkGHnx3M1PL9Raf7AQ1kwLKg04ADlCa3+OXUZE7BceOhVZiuWAbzCKcUQ==
+  dependencies:
+    magic-string "^0.30.5"
+    pathe "^1.1.1"
+    pretty-format "^29.7.0"
+
 "@vitest/spy@1.5.2":
   version "1.5.2"
   resolved "https://registry.npmmirror.com/@vitest/spy/-/spy-1.5.2.tgz#6b439a933b64522edbb8da878fa5b5b6361140ef"
@@ -10669,10 +10989,27 @@
   dependencies:
     tinyspy "^2.2.0"
 
+"@vitest/spy@1.6.1":
+  version "1.6.1"
+  resolved "https://registry.npmmirror.com/@vitest/spy/-/spy-1.6.1.tgz#33376be38a5ed1ecd829eb986edaecc3e798c95d"
+  integrity sha512-MGcMmpGkZebsMZhbQKkAf9CX5zGvjkBTqf8Zx3ApYWXr3wG+QvEu2eXWfnIIWYSJExIp4V9FCKDEeygzkYrXMw==
+  dependencies:
+    tinyspy "^2.2.0"
+
 "@vitest/utils@1.5.2":
   version "1.5.2"
   resolved "https://registry.npmmirror.com/@vitest/utils/-/utils-1.5.2.tgz#6a314daa8400a242b5509908cd8977a7bd66ef65"
   integrity sha512-sWOmyofuXLJ85VvXNsroZur7mOJGiQeM0JN3/0D1uU8U9bGFM69X1iqHaRXl6R8BwaLY6yPCogP257zxTzkUdA==
+  dependencies:
+    diff-sequences "^29.6.3"
+    estree-walker "^3.0.3"
+    loupe "^2.3.7"
+    pretty-format "^29.7.0"
+
+"@vitest/utils@1.6.1":
+  version "1.6.1"
+  resolved "https://registry.npmmirror.com/@vitest/utils/-/utils-1.6.1.tgz#6d2f36cb6d866f2bbf59da854a324d6bf8040f17"
+  integrity sha512-jOrrUvXM4Av9ZWiG1EajNto0u96kWAhJ1LmPmJhXXQx/32MecEKd10pOLYgS2BQx1TgkGhloPU1ArDW2vvaY6g==
   dependencies:
     diff-sequences "^29.6.3"
     estree-walker "^3.0.3"
@@ -33304,6 +33641,17 @@ vite-node@1.5.2:
     picocolors "^1.0.0"
     vite "^5.0.0"
 
+vite-node@1.6.1:
+  version "1.6.1"
+  resolved "https://registry.npmmirror.com/vite-node/-/vite-node-1.6.1.tgz#fff3ef309296ea03ceaa6ca4bb660922f5416c57"
+  integrity sha512-YAXkfvGtuTzwWbDSACdJSg4A4DZiAqckWe90Zapc/sEX3XvHcw1NdurM/6od8J207tSDqNbSsgdCacBgvJKFuA==
+  dependencies:
+    cac "^6.7.14"
+    debug "^4.3.4"
+    pathe "^1.1.1"
+    picocolors "^1.0.0"
+    vite "^5.0.0"
+
 vite@4.3.1:
   version "4.3.1"
   resolved "https://registry.npmmirror.com/vite/-/vite-4.3.1.tgz#9badb1377f995632cdcf05f32103414db6fbb95a"
@@ -33362,6 +33710,32 @@ vitest@^1.5.0:
     tinypool "^0.8.3"
     vite "^5.0.0"
     vite-node "1.5.2"
+    why-is-node-running "^2.2.2"
+
+vitest@^1.5.2:
+  version "1.6.1"
+  resolved "https://registry.npmmirror.com/vitest/-/vitest-1.6.1.tgz#b4a3097adf8f79ac18bc2e2e0024c534a7a78d2f"
+  integrity sha512-Ljb1cnSJSivGN0LqXd/zmDbWEM0RNNg2t1QW/XUhYl/qPqyu7CsqeWtqQXHVaJsecLPuDoak2oJcZN2QoRIOag==
+  dependencies:
+    "@vitest/expect" "1.6.1"
+    "@vitest/runner" "1.6.1"
+    "@vitest/snapshot" "1.6.1"
+    "@vitest/spy" "1.6.1"
+    "@vitest/utils" "1.6.1"
+    acorn-walk "^8.3.2"
+    chai "^4.3.10"
+    debug "^4.3.4"
+    execa "^8.0.1"
+    local-pkg "^0.5.0"
+    magic-string "^0.30.5"
+    pathe "^1.1.1"
+    picocolors "^1.0.0"
+    std-env "^3.5.0"
+    strip-literal "^2.0.0"
+    tinybench "^2.5.1"
+    tinypool "^0.8.3"
+    vite "^5.0.0"
+    vite-node "1.6.1"
     why-is-node-running "^2.2.2"
 
 vizion@~2.2.1:
@@ -34177,7 +34551,7 @@ zod@^3.23.8:
 
 "zod@^3.25.0 || ^4.0.0":
   version "4.4.3"
-  resolved "https://registry.npmmirror.com/zod/-/zod-4.4.3.tgz#b680f172885d18bbebf21a834ea25e55a1bbf356"
+  resolved "https://registry.npmjs.org/zod/-/zod-4.4.3.tgz#b680f172885d18bbebf21a834ea25e55a1bbf356"
   integrity sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==
 
 "zod@^3.25.76 || ^4":

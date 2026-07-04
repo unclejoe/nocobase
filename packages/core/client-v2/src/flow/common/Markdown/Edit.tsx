@@ -18,6 +18,7 @@ import React, { useEffect, useCallback, useLayoutEffect, useMemo, useRef, useSta
 import { useTranslation } from 'react-i18next';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
+import { stripMarkdownIframeTags, stripMarkdownIframes } from '../../../utils/markdownSanitize';
 import { useCDN } from './useCDN';
 import useStyle from './style';
 
@@ -104,8 +105,9 @@ const Edit = (props) => {
     if (!containerRef.current) return;
 
     const toolbarConfig = placeToolbarTooltipsBelow(toolbar ?? defaultToolbar);
+    const safeValue = stripMarkdownIframeTags(value ?? '');
     const vditor = new Vditor(containerRef.current, {
-      value: value ?? '',
+      value: safeValue,
       lang,
       cache: { enable: false },
       undoDelay: 0,
@@ -113,7 +115,13 @@ const Edit = (props) => {
       // Vditor ships its own light/dark CSS; pick the one matching the active
       // antd theme so the editor surface (toolbar, borders) blends in.
       theme: isDarkTheme ? 'dark' : 'classic',
-      preview: { math: { engine: 'KaTeX' } },
+      preview: {
+        markdown: {
+          sanitize: true,
+        },
+        math: { engine: 'KaTeX' },
+        transform: stripMarkdownIframes,
+      },
       toolbar: toolbarConfig,
       fullscreen: { index: 1200 },
       cdn,
@@ -122,7 +130,6 @@ const Edit = (props) => {
       after: () => {
         vdRef.current = vditor;
         setEditorReady(true); // Notify that the editor is ready
-        vditor.setValue(value ?? '');
         if (disabled) {
           vditor.disabled();
         } else {
@@ -136,8 +143,12 @@ const Edit = (props) => {
           });
         }
       },
-      input(value) {
-        onChange(value);
+      input(nextValue) {
+        const safeNextValue = stripMarkdownIframeTags(nextValue);
+        if (safeNextValue !== nextValue) {
+          vditor.setValue(safeNextValue);
+        }
+        onChange(safeNextValue);
       },
       upload: {
         multiple: false,
@@ -234,8 +245,9 @@ const Edit = (props) => {
   useEffect(() => {
     if (editorReady && vdRef.current) {
       const editor = vdRef.current;
-      if (value !== editor.getValue()) {
-        editor.setValue(value ?? '');
+      const safeValue = stripMarkdownIframeTags(value ?? '');
+      if (safeValue !== editor.getValue()) {
+        editor.setValue(safeValue);
 
         const preArea = containerRef.current?.querySelector(
           'div.vditor-content > div.vditor-ir > pre',
