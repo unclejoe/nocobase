@@ -9,7 +9,7 @@
 
 import { observer, type MultiRecordResource } from '@nocobase/flow-engine';
 import { dayjs } from '@nocobase/utils/client';
-import { App, Button, Card, Tooltip } from 'antd';
+import { App, Button, Card, Tooltip, theme } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useT } from '../locale';
 import { CommentActions } from './CommentActions';
@@ -49,47 +49,9 @@ const itemContainerStyle: React.CSSProperties = {
   position: 'relative',
 };
 
-const timelineStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  bottom: 0,
-  content: '',
-  display: 'block',
-  width: 2,
-  left: 16,
-  backgroundColor: '#d0d7deb3',
-  zIndex: 0,
-};
-
-const titleStyle: React.CSSProperties = {
-  color: '#636c76',
-  display: 'flex',
-  alignItems: 'center',
-  paddingLeft: 16,
-  borderRadius: '8px 8px 0 0',
-  justifyContent: 'space-between',
-  flexWrap: 'wrap',
-  lineHeight: '42px',
-};
-
-const titleLeftStyle: React.CSSProperties = {
-  backgroundColor: '#f6f8fa',
-  color: '#636c76',
-  display: 'flex',
-  alignItems: 'center',
-  columnGap: 6,
-};
-
 const titleRightStyle: React.CSSProperties = {
   marginRight: 16,
   flexShrink: 0,
-};
-
-const editorStyle: React.CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  backgroundColor: 'white',
-  borderRadius: '0 0 8px 8px',
 };
 
 const editorButtonAreaStyle: React.CSSProperties = {
@@ -151,9 +113,49 @@ export const CommentItem = observer((props: CommentItemProps) => {
   const { value, resource, model } = props;
   const t = useT();
   const { message } = App.useApp();
+  const { token } = theme.useToken();
   const [editing, setEditing] = useState(false);
   const [updateValue, setUpdateValue] = useState(value?.content || '');
   const markdown = model.context.markdown;
+
+  // Surface colors are derived from antd design tokens so the comment card
+  // adapts to light, dark, and compact-dark themes instead of always rendering
+  // a light header on a dark page.
+  const timelineStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    content: '',
+    display: 'block',
+    width: 2,
+    left: 16,
+    backgroundColor: token.colorBorderSecondary,
+    zIndex: 0,
+  };
+  const titleStyle: React.CSSProperties = {
+    color: token.colorTextSecondary,
+    display: 'flex',
+    alignItems: 'center',
+    paddingLeft: 16,
+    borderRadius: '8px 8px 0 0',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    lineHeight: '42px',
+  };
+  const titleLeftStyle: React.CSSProperties = {
+    backgroundColor: 'transparent',
+    color: token.colorTextSecondary,
+    display: 'flex',
+    alignItems: 'center',
+    columnGap: 6,
+  };
+  const editorStyle: React.CSSProperties = {
+    position: 'relative',
+    zIndex: 2,
+    backgroundColor: token.colorBgContainer,
+    borderRadius: '0 0 8px 8px',
+  };
+  const cardHeaderStyle = { backgroundColor: 'transparent' };
 
   useEffect(() => {
     setUpdateValue(value?.content || '');
@@ -185,7 +187,7 @@ export const CommentItem = observer((props: CommentItemProps) => {
             header: {
               padding: 0,
               fontWeight: 'normal',
-              backgroundColor: '#f6f8fa',
+              backgroundColor: cardHeaderStyle.backgroundColor,
             },
           }}
           title={

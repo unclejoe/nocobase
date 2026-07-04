@@ -25,14 +25,14 @@ export default genStyleHook('nb-comment', (token) => {
     [componentCls]: {
       [`${componentCls}-item-container-container`]: {
         ['&:first-child']: {
-          border: '5px solid #d0d7deb3',
+          border: `5px solid ${token.colorBorderSecondary}`,
           position: 'relative',
           zIndex: 1,
           borderRadius: 8,
         },
       },
       [`${componentCls}-item-container-border`]: {
-        border: '1px solid #d0d7deb3',
+        border: `1px solid ${token.colorBorderSecondary}`,
         position: 'relative',
         zIndex: 1,
         borderRadius: 8,
@@ -45,7 +45,7 @@ export default genStyleHook('nb-comment', (token) => {
         display: 'block',
         width: 2,
         left: 16,
-        backgroundColor: '#d0d7deb3',
+        backgroundColor: token.colorBorderSecondary,
         zIndex: 0,
       },
       '.ant-list-pagination': {
@@ -54,10 +54,10 @@ export default genStyleHook('nb-comment', (token) => {
       '.ant-card-head': {
         padding: '0 !important',
         fontWeight: 'normal',
-        backgroundColor: '#f6f8fa',
+        backgroundColor: 'transparent',
       },
       [`${componentCls}-item-title`]: {
-        color: '#636c76',
+        color: token.colorTextSecondary,
         display: 'flex',
         alignItems: 'center',
         paddingLeft: 16,
@@ -66,8 +66,8 @@ export default genStyleHook('nb-comment', (token) => {
         flexWrap: 'wrap',
         lineHeight: '32px',
         [`${componentCls}-item-title-left`]: {
-          backgroundColor: '#f6f8fa',
-          color: '#636c76',
+          backgroundColor: 'transparent',
+          color: token.colorTextSecondary,
           display: 'flex',
           alignItems: 'center',
           columnGap: 6,
@@ -91,7 +91,7 @@ export default genStyleHook('nb-comment', (token) => {
       [`${componentCls}-item-editor`]: {
         position: 'relative',
         zIndex: 2,
-        backgroundColor: 'white',
+        backgroundColor: token.colorBgContainer,
         borderRadius: '0 0 8px 8px',
         [`${componentCls}-item-editor-button-area`]: {
           marginTop: 10,
