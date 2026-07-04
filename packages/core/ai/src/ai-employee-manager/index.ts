@@ -41,6 +41,10 @@ export class DefaultAIEmployeeManager implements AIEmployeeManager {
     return (await this.aiEmployeesModel.findOne({ where: { username } }))?.toJSON() as AIEmployeeEntry;
   }
 
+  getEmployeeOptions(username: string): AIEmployeeOptions | undefined {
+    return this.employees.get(username);
+  }
+
   async listEmployees(filter: AIEmployeeFilter = {}): Promise<AIEmployeeEntry[]> {
     const where = {};
     if (filter.builtIn != null) {

@@ -129,3 +129,28 @@ The email detail block is a persisted FlowModel whose `use` field is the string 
 **Why the page schema can't be edited directly here:** The stored v2 page/flow data lives in the `flowSurfaces`/`flowModels` internal tables and is not reachable via the standard `nb api resource` surface (returns errors on direct query). Editing the `use` value requires either the UI builder, a targeted API/migration against those tables, or the DSL reconciler.
 
 **Verification of fix:** on the modern client (`/v/`), 订单 → 报价单 → 邮件 tab → click a row renders the email detail (and, if fix #2 is chosen, the reply-draft area) without the "not found" error. React fiber confirms the model instance is no longer `ErrorFlowModel`.
+
+## KI-004: AI employee `ellis` (Email expert) has no mail tools — can only summarize/draft from provided text
+
+**Status:** Root cause located; tool implementation deferred (new feature work, not a regression). `ellis` remains enabled and usable for text-based summarization/drafting, but cannot read or send mail.
+
+**Symptom:** The built-in AI employee `ellis` ("Email expert") repeatedly instructs itself in its `systemPrompt` to "use only provided tools and visible content" and to combine thread history + customer profile, but **no mail-reading or mail-sending tools are registered**. In practice `ellis` can only summarize or draft replies based on text the user pastes into the chat — it cannot pull a thread from the mail store, look up the customer profile, or send the drafted reply.
+
+**Reproduction:** Start a conversation with `ellis` (e.g. via an AI employee button or the chat panel). Ask it to "read my latest email from X" or "send a reply to this thread." `ellis` will either ask the user to paste the content or hallucinate — it has no tool to fetch or send mail. Confirm in DB: `aiToolMessages` for `aiEmployeeUsername='ellis'` is empty (ellis has never invoked any tool).
+
+**Root cause (confirmed by code trace):**
+
+- `ellis` is defined in `packages/plugins/@nocobase/plugin-ai/src/ai/ai-employees/ellis.ts`. Its `defineAIEmployee({...})` declares **no `tools` and no `skills`**, yet its `systemPrompt` says "Use only provided tools and visible content."
+- The plugin's registered GENERAL tools are `chartGenerator`, `formFiller`, `getSkill`, `suggestions` (`aiTools:list?scope=GENERAL`). None of these read or send mail. The SPECIFIED tool set (`aiTools:list`) also contains no mail tool.
+- The mail data exists (collections `mailMessages`, `mailAccounts`, `mailSettings`, etc. are present in the DB, and `plugin-notification-email` is enabled), but **no AI tool wraps mail read/send/list**. There is no `readMail` / `sendMail` / `listMailThreads` tool definition under `packages/plugins/@nocobase/plugin-ai/src/ai/tools/` or `plugin-notification-email`.
+- Compare `dex` (form filling) and `vera` (web search): each has a backing tool (`formFiller`, `subAgentWebSearch`). `ellis` has no equivalent mail tool, so its prompt's tool references are vacuous.
+
+**Scope of the fix (when picked up):**
+
+1. Implement mail tools (e.g. `listMailThreads`, `readMailThread`, `getCustomerProfile`, `sendMail` / `draftMail`) — most naturally in `plugin-notification-email`'s `src/ai/tools/`, following the `defineTools({ scope: 'GENERAL'|'SPECIFIED', execution: 'backend'|'frontend', ... })` pattern used by `formFiller.ts`. Read-only tools (`listMailThreads`, `readMailThread`) should be `execution: 'backend'` + `defaultPermission: 'ALLOW'`; `sendMail` should be `defaultPermission: 'ASK'` (human approval before sending).
+2. Declare them on `ellis` via `tools: [{ name: 'listMailThreads', autoCall: true }, ...]` in `ellis.ts`, matching how `atlas` declares `dispatch-sub-agent-task` and `dex` declares `formFiller`.
+3. Optionally add a customer-profile tool that joins `mailMessages` sender/recipient with the CRM's contacts/customers collection, since `ellis`'s prompt explicitly calls for "customer profile (role, company, segment, lifecycle stage, past deals/tickets)."
+
+**Why not a quick mitigation:** unlike `lexi`/`dex` (which only needed an existing tool whitelisted), `ellis` needs **new tool implementations** that wrap the mail data source. This is feature work, not config.
+
+**Verification of fix:** after implementing the tools and redeploying, a conversation with `ellis` shows tool-call bubbles for `listMailThreads` / `readMailThread` (visible in `aiToolMessages` for `aiEmployeeUsername='ellis'`), and `ellis` can summarize a real thread fetched from the mail store and draft (or, with approval, send) a reply.

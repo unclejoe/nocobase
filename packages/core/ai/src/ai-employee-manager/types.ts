@@ -33,6 +33,13 @@ export type AIEmployeeOptions = {
   description?: string;
   skills?: string[];
   tools?: AIEmployeeToolSetting[];
+  /**
+   * Whether web search is enabled by default for this employee. When omitted,
+   * the caller's request-level `webSearch` flag controls availability. Set to
+   * `true` for research-oriented employees whose core role requires internet
+   * access (e.g. `vera`).
+   */
+  webSearch?: boolean;
   chatSettings?: {
     systemPromptMode?: 'default' | 'raw' | 'none';
     enableSkills?: boolean;
@@ -66,6 +73,11 @@ export type AIEmployeeFilter = {
 export interface AIEmployeeManager {
   init(): Promise<void>;
   getEmployee(username: string): Promise<AIEmployeeEntry>;
+  /**
+   * Returns the registered source definition (e.g. `webSearch` default) for a
+   * built-in employee, or `undefined` for user-created employees.
+   */
+  getEmployeeOptions(username: string): AIEmployeeOptions | undefined;
   listEmployees(filter?: AIEmployeeFilter): Promise<AIEmployeeEntry[]>;
   registerEmployee(options: AIEmployeeOptions): Promise<void>;
 }
