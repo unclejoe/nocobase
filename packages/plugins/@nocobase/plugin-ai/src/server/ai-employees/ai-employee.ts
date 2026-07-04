@@ -872,6 +872,26 @@ export class AIEmployee {
     const availableSkills = await this.getAvailableSkills();
     const availableAIEmployees = await this.getAvailableAIEmployees();
 
+    // Resolve the current authenticated user so the model can identify who it
+    // is assisting and reason about their role-scoped permissions without
+    // having to ask the user. Tools already inherit ACL through the shared
+    // request context; this only informs the model's own reasoning.
+    const currentUserId = this.ctx.auth?.user?.id;
+    let promptUser: { id: number; username?: string; nickname?: string; roles?: string[] } | undefined;
+    if (currentUserId) {
+      const userProfile = await this.db.getRepository('users').findOne({
+        filterByTk: currentUserId,
+        fields: ['username', 'nickname'],
+      });
+      const currentRoles = this.ctx.state?.currentRoles;
+      promptUser = {
+        id: currentUserId,
+        username: userProfile?.username,
+        nickname: userProfile?.nickname,
+        roles: Array.isArray(currentRoles) ? currentRoles.filter(Boolean) : undefined,
+      };
+    }
+
     const systemPrompt = getSystemPrompt({
       aiEmployee: {
         nickname: this.employee.nickname,
@@ -890,6 +910,7 @@ export class AIEmployee {
       knowledgeBase,
       availableSkills,
       availableAIEmployees,
+      user: promptUser,
     });
 
     const { important } = this.ctx.action?.params?.values || {};
