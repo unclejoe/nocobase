@@ -8,6 +8,7 @@
  */
 
 import { getZIndex, useZIndexContext } from '../../../flow-compat';
+import { useGlobalTheme } from '../../../theme';
 import { Button, QRCode } from 'antd';
 import { css } from '@emotion/css';
 import { createRoot } from 'react-dom/client';
@@ -72,6 +73,7 @@ function placeToolbarTooltipsBelow(toolbar: MarkdownToolbarItem[]) {
 const Edit = (props) => {
   const { disabled, onChange, value, fileCollection, toolbar, vditorRef } = props;
   const flowCtx = useFlowContext();
+  const { isDarkTheme } = useGlobalTheme();
 
   const [editorReady, setEditorReady] = useState(false);
   const vdRef = useRef<Vditor>();
@@ -108,6 +110,9 @@ const Edit = (props) => {
       cache: { enable: false },
       undoDelay: 0,
       mode: props.mode || 'ir',
+      // Vditor ships its own light/dark CSS; pick the one matching the active
+      // antd theme so the editor surface (toolbar, borders) blends in.
+      theme: isDarkTheme ? 'dark' : 'classic',
       preview: { math: { engine: 'KaTeX' } },
       toolbar: toolbarConfig,
       fullscreen: { index: 1200 },
@@ -224,7 +229,7 @@ const Edit = (props) => {
       observer.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toolbar?.join(',')]);
+  }, [toolbar?.join(','), isDarkTheme]);
 
   useEffect(() => {
     if (editorReady && vdRef.current) {
