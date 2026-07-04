@@ -15,6 +15,7 @@ export function getSystemPrompt({
   knowledgeBase,
   availableSkills,
   availableAIEmployees,
+  user,
 }: {
   aiEmployee: { nickname: string; about: string };
   personal?: string;
@@ -30,6 +31,7 @@ export function getSystemPrompt({
     greeting: string;
     skillSettings: any;
   }[];
+  user?: { id: number; username?: string; nickname?: string; roles?: string[] };
 }) {
   // Helper function to get database-specific identifier quoting rules
   const getDatabaseQuotingRules = (): string => {
@@ -138,6 +140,18 @@ ${task.context ? `<context>\n${task.context}\n</context>` : ''}
 ${environment.currentDateTime ? `<current_datetime>${environment.currentDateTime}</current_datetime>` : ''}
 ${environment.timezone ? `<timezone>${environment.timezone}</timezone>` : ''}
 </environment>
+
+${
+  user
+    ? `<user>
+The identity below is the authenticated current user. Treat it as authoritative: do not ask the USER to restate their id, username, or role. Use it when the task requires knowing who is being served or when reasoning about role-scoped permissions.
+- id: ${user.id}
+${user.username ? `- username: ${user.username}` : ''}
+${user.nickname ? `- nickname: ${user.nickname}` : ''}
+${user.roles?.length ? `- roles: ${user.roles.join(', ')}` : ''}
+</user>`
+    : ''
+}
 
 ${
   availableSkills?.length
