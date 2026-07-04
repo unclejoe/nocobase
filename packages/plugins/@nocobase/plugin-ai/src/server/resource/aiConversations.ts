@@ -311,9 +311,15 @@ export default {
         messages,
         editingMessageId,
         model,
-        webSearch,
+        webSearch: requestWebSearch,
         stream = true,
       } = ctx.action.params.values || {};
+      // Fall back to the employee's declared default (e.g. `vera` requires web
+      // search for its research role) when the caller leaves it unspecified.
+      const webSearch =
+        typeof requestWebSearch === 'boolean'
+          ? requestWebSearch
+          : plugin.ai.employeeManager.getEmployeeOptions(employeeName)?.webSearch === true;
 
       const shouldStream = stream !== false;
       if (shouldStream) {
@@ -532,7 +538,7 @@ export default {
     async resendMessages(ctx: Context, next: Next) {
       const plugin = ctx.app.pm.get('ai') as PluginAIServer;
       const userId = ctx.auth?.user.id;
-      const { sessionId, webSearch, model, stream = true } = ctx.action.params.values || {};
+      const { sessionId, model, stream = true, webSearch: requestWebSearch } = ctx.action.params.values || {};
       let { messageId } = ctx.action.params.values || {};
 
       const shouldStream = stream !== false;
@@ -558,6 +564,11 @@ export default {
         if (!employee) {
           throw new ResourceActionError(400, ctx.t('AI employee not found'));
         }
+        // Fall back to the employee's declared default (e.g. `vera`) when unset.
+        const webSearch =
+          typeof requestWebSearch === 'boolean'
+            ? requestWebSearch
+            : plugin.ai.employeeManager.getEmployeeOptions(conversation.aiEmployeeUsername)?.webSearch === true;
 
         const resendMessages: AIMessageInput[] = [];
         if (messageId) {
@@ -735,7 +746,7 @@ export default {
       setupSSEHeaders(ctx);
 
       const plugin = ctx.app.pm.get('ai') as PluginAIServer;
-      const { sessionId, messageId, model, webSearch } = ctx.action.params.values || {};
+      const { sessionId, messageId, model, webSearch: requestWebSearch } = ctx.action.params.values || {};
       if (!sessionId) {
         sendErrorResponse(ctx, 'sessionId is required');
         return next();
@@ -755,6 +766,11 @@ export default {
           sendErrorResponse(ctx, 'AI employee not found');
           return next();
         }
+        // Fall back to the employee's declared default (e.g. `vera`) when unset.
+        const webSearch =
+          typeof requestWebSearch === 'boolean'
+            ? requestWebSearch
+            : plugin.ai.employeeManager.getEmployeeOptions(conversation.aiEmployeeUsername)?.webSearch === true;
 
         let message: Model;
         if (messageId) {

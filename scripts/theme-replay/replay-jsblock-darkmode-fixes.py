@@ -37,7 +37,11 @@ Restores fixed code for these JSBlockModel families (by component name):
   - PagedListPanel
   - LeadLifecycleCard / QuotationLifecycleCard / OrderWorkflowCard
   - QuotationDetailPreview / OrderDetailPreview
+  - QuotationConfigurator (Add quotation page)
+  - Quotation + Orders + Invoices table summary (TableBlockModel runJs renderers)
+  - Projects table summary (status / priority / budget / progress renderer)
   - Project header + Milestone timeline (HeaderSurface / MilestoneSurface wrappers)
+  - Orders Guide panel (Orders execution and finance guide)
 
 The source-level fixes (plugin-comments cssinjs + Markdown Vditor theme) are
 NOT replayed here — those live in git (commits 37387829cb, fea0e28885) and
@@ -83,6 +87,17 @@ def update_node(uid, new_code):
          + new_options_str + "$nb_json_val$::json WHERE uid = '" + uid + "';\n")
 
 
+def update_flow_registry_node(uid, flow_key, new_code):
+    """Update a runJs code block that lives under
+    options.flowRegistry.<flow_key>.steps.runJs.defaultParams.code
+    (used by TableBlockModel summary renderers, etc.)."""
+    options = json.loads(psql(f"SELECT options FROM \"flowModels\" WHERE uid = '{uid}';").strip())
+    options["flowRegistry"][flow_key]["steps"]["runJs"]["defaultParams"]["code"] = new_code
+    new_options_str = json.dumps(options)
+    psql('UPDATE "flowModels" SET options = $nb_json_val$'
+         + new_options_str + "$nb_json_val$::json WHERE uid = '" + uid + "';\n")
+
+
 def main():
     if not os.path.exists(SNAPSHOT_PATH):
         print(f"ERROR: snapshot not found at {SNAPSHOT_PATH}", file=sys.stderr)
@@ -101,11 +116,19 @@ def main():
     for entry in snapshot:
         uid = entry["uid"]
         fixed_code = entry["code"]
+        path = entry.get("path")
+        flow_key = entry.get("flowKey")
         try:
-            current = psql(
-                f"SELECT options->'stepParams'->'jsSettings'->'runJs'->>'code' "
-                f"FROM \"flowModels\" WHERE uid = '{uid}';"
-            ).rstrip("\n")
+            if path == "flowRegistry":
+                current = psql(
+                    f"SELECT options->'flowRegistry'->'{flow_key}'->'steps'->'runJs'->'defaultParams'->>'code' "
+                    f"FROM \"flowModels\" WHERE uid = '{uid}';"
+                ).rstrip("\n")
+            else:
+                current = psql(
+                    f"SELECT options->'stepParams'->'jsSettings'->'runJs'->>'code' "
+                    f"FROM \"flowModels\" WHERE uid = '{uid}';"
+                ).rstrip("\n")
         except RuntimeError:
             skipped_missing += 1
             continue
@@ -116,7 +139,10 @@ def main():
             skipped_fixed += 1
             continue
         try:
-            update_node(uid, fixed_code)
+            if path == "flowRegistry":
+                update_flow_registry_node(uid, flow_key, fixed_code)
+            else:
+                update_node(uid, fixed_code)
             changed += 1
         except Exception as e:
             print(f"  {uid}: FAILED {e}", file=sys.stderr)

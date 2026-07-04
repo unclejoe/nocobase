@@ -147,10 +147,14 @@ PGPASSWORD=nocobase python3 scripts/theme-replay/replay-jsblock-darkmode-fixes.p
 ```
 
 The script is **idempotent** — it skips nodes that already contain `useToken`.
-It restores fixed code for 103 nodes across these component families:
+It restores fixed code for 123 nodes across these component families:
 OverdueTicketPanel, MiniCard, PagedListPanel, LeadLifecycleCard,
 QuotationLifecycleCard, OrderWorkflowCard, QuotationDetailPreview,
-OrderDetailPreview, and the project header / milestone timeline wrappers.
+OrderDetailPreview, QuotationConfigurator (Add quotation page),
+Quotation table summary and Orders table summary (TableBlockModel
+runJs renderers), the Invoices table summary, the Projects table
+summary (status / priority / budget / progress renderer), the project
+header / milestone timeline wrappers, and the Orders Guide panel.
 
 The **source-level** fixes (plugin-comments cssinjs + Markdown Vditor dark theme)
 are in git (commits `37387829cb`, `fea0e28885`) and do not need replaying.
