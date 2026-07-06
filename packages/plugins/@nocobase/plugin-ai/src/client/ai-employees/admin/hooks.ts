@@ -33,6 +33,7 @@ export const useCreateFormProps = () => {
           username: `${uid()}`,
           enabled: true,
           enableKnowledgeBase: false,
+          markdownKnowledgeEnabled: false,
           knowledgeBase: {
             knowledgeBaseKeys: [],
             topK: 3,

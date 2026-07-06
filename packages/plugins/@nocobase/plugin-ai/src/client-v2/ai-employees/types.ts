@@ -34,6 +34,10 @@ export type AIEmployee = {
   toolsConflict?: boolean;
   category?: string;
   deprecated?: boolean;
+  /** Layer 1 static markdown knowledge injected into the system prompt. */
+  markdownKnowledge?: string;
+  /** Whether Layer 1 markdown knowledge injection is enabled. */
+  markdownKnowledgeEnabled?: boolean;
   modelSettings?: {
     enabled?: boolean;
     llmService?: string;

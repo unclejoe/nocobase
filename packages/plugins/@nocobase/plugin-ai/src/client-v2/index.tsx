@@ -26,6 +26,25 @@ export class PluginAIClientV2 extends Plugin {
         value: new AIConfigRepository(this.app.apiClient),
       });
     }
+
+    // Register a v2 plugin-settings page that exposes the Layer 1 markdown
+    // knowledge editor. The v2 runtime has no AI employee admin/edit page yet
+    // (the full formily form lives in v1), so this page gives v2 users a
+    // usable markdown knowledge entry — mirroring the pattern in plugin-acl's
+    // RolesManagementPage (addMenuItem + addPageTabItem + componentLoader).
+    this.pluginSettingsManager.addMenuItem({
+      key: 'ai-markdown-knowledge',
+      title: this.t('Markdown Knowledge'),
+      isPinned: false,
+      sort: 500,
+      icon: 'FileTextOutlined',
+    });
+    this.pluginSettingsManager.addPageTabItem({
+      menuKey: 'ai-markdown-knowledge',
+      key: 'index',
+      title: this.t('Markdown Knowledge'),
+      componentLoader: () => import('./ai-employees/admin/MarkdownKnowledgePage'),
+    });
   }
 }
 
@@ -34,6 +53,9 @@ export default PluginAIClientV2;
 export { AIEmployeeProfileCard } from './ai-employees/ProfileCard';
 export { AIEmployeeShortcut } from './ai-employees/AIEmployeeShortcut';
 export { avatars, avatarsMap } from './ai-employees/avatars';
+// Layer 1 markdown knowledge editor (v2 runtime) — see admin/MarkdownKnowledgeEditor.
+export { MarkdownKnowledgeEditor } from './ai-employees/admin/MarkdownKnowledgeEditor';
+export { MarkdownKnowledgeVditorField } from './ai-employees/admin/MarkdownKnowledgeVditorField';
 export type {
   AIEmployee,
   Attachment,

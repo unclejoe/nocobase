@@ -12,7 +12,7 @@ import { LLMProvider } from '../llm-providers/provider';
 import { Database } from '@nocobase/database';
 import PluginAIServer from '../plugin';
 import { sendSSEError, parseVariables, buildTool } from '../utils';
-import { getSystemPrompt } from './prompts';
+import { getSystemPrompt, applyMarkdownKnowledgeTokenBudget } from './prompts';
 import _ from 'lodash';
 import { AIChatContext, AIChatConversation, AIMessage, AIMessageInput, AIToolCall, UserDecision } from '../types';
 import { createAIChatConversation } from '../manager/ai-chat-conversation';
@@ -869,9 +869,24 @@ export class AIEmployee {
       }
     }
 
+    // Layer 1 static markdown knowledge: directly inject a `<markdownKnowledge>`
+    // block into the system prompt. Orthogonal to the Layer 2 vector knowledge
+    // base above (which goes through retrievePrompt). Token budget is enforced
+    // here so a large markdown blob cannot blow up the context window.
+    let markdownKnowledge: string | undefined;
+    if (employee.markdownKnowledgeEnabled && employee.markdownKnowledge) {
+      const budgeted = applyMarkdownKnowledgeTokenBudget(employee.markdownKnowledge);
+      if (budgeted.truncated) {
+        this.logger.warn('AI employee markdownKnowledge exceeded the token budget and was truncated', {
+          aiEmployee: this.employee.username,
+          budget: budgeted.content.length,
+        });
+      }
+      markdownKnowledge = budgeted.content;
+    }
+
     const availableSkills = await this.getAvailableSkills();
     const availableAIEmployees = await this.getAvailableAIEmployees();
-
     // Resolve the current authenticated user so the model can identify who it
     // is assisting and reason about their role-scoped permissions without
     // having to ask the user. Tools already inherit ACL through the shared
@@ -908,6 +923,7 @@ export class AIEmployee {
         timezone: getCurrentTimezone(this.ctx),
       },
       knowledgeBase,
+      markdownKnowledge,
       availableSkills,
       availableAIEmployees,
       user: promptUser,

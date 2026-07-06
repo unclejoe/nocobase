@@ -7,12 +7,55 @@
  * For more information, please refer to: https://www.nocobase.com/agreement.
  */
 
+/**
+ * Default token-budget threshold for the Layer 1 markdown knowledge block.
+ * Exposed as a constant so it can be tuned or made configurable later without
+ * changing call sites. Approximately 8k tokens.
+ */
+export const MARKDOWN_KNOWLEDGE_TOKEN_BUDGET = 8000;
+
+/**
+ * Lightweight token estimator.
+ *
+ * NocoBase does not currently depend on tiktoken or any tokenizer, so we use the
+ * widely-cited heuristic of ~4 characters per token for English/mixed text. It is
+ * intentionally conservative (tends to over-count slightly), which is the safe
+ * direction for a budget guard. Swap for a real tokenizer if one is added to deps.
+ */
+export function estimateTokens(text: string): number {
+  if (!text) {
+    return 0;
+  }
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Truncate the Layer 1 markdown knowledge to fit the token budget. Returns the
+ * (possibly truncated) content and signals via `truncated` whether truncation
+ * happened, so callers can emit a warning log.
+ */
+export function applyMarkdownKnowledgeTokenBudget(
+  content: string,
+  budget = MARKDOWN_KNOWLEDGE_TOKEN_BUDGET,
+): { content: string; truncated: boolean } {
+  const tokens = estimateTokens(content);
+  if (tokens <= budget) {
+    return { content, truncated: false };
+  }
+  // Convert the budget back to a character ceiling, leaving a little room for
+  // the truncation marker appended below.
+  const maxChars = Math.max(0, budget * 4 - 50);
+  const truncatedContent = content.slice(0, maxChars) + '\n\n...[markdownKnowledge truncated: exceeded token budget]';
+  return { content: truncatedContent, truncated: true };
+}
+
 export function getSystemPrompt({
   aiEmployee,
   personal,
   task,
   environment,
   knowledgeBase,
+  markdownKnowledge,
   availableSkills,
   availableAIEmployees,
   user,
@@ -22,6 +65,13 @@ export function getSystemPrompt({
   task: { background: string; context?: string };
   environment: { database: string; locale: string; currentDateTime?: string; timezone?: string };
   knowledgeBase?: string;
+  /**
+   * Layer 1 static markdown knowledge already wrapped (and token-budgeted) by
+   * the caller. When provided, it is rendered as a `<markdownKnowledge>` block
+   * alongside the `<knowledgeBase>` block. The caller is responsible for the
+   * token budget so this function stays pure and easily testable.
+   */
+  markdownKnowledge?: string;
   availableSkills?: { name: string; description: string; content?: string }[];
   availableAIEmployees?: {
     username: string;
@@ -188,5 +238,7 @@ ${
 }
 
 ${knowledgeBase ? `<knowledgeBase>${knowledgeBase}</knowledgeBase>` : ''}
+
+${markdownKnowledge ? `<markdownKnowledge>\n${markdownKnowledge}\n</markdownKnowledge>` : ''}
 `;
 }

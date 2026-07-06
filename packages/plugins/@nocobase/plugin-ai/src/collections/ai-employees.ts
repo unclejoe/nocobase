@@ -77,6 +77,20 @@ export default {
       name: 'knowledgeBasePrompt',
       type: 'text',
     },
+    // Layer 1 static knowledge: markdown rules/SOPs injected directly into the
+    // system prompt. Orthogonal to the Layer 2 vector knowledge base above.
+    {
+      name: 'markdownKnowledge',
+      type: 'text',
+      interface: 'markdown',
+    },
+    {
+      name: 'markdownKnowledgeEnabled',
+      type: 'boolean',
+      interface: 'switch',
+      allowNull: false,
+      defaultValue: false,
+    },
 
     /**
      * knowledgeBase: {
@@ -137,6 +151,8 @@ export type AIEmployee = {
     knowledgeBaseKeys: string[];
   };
   enableKnowledgeBase: boolean;
+  markdownKnowledge?: string;
+  markdownKnowledgeEnabled: boolean;
   enabled: boolean;
   builtIn: boolean;
   missingKnowledgeBaseKeys?: string[];
