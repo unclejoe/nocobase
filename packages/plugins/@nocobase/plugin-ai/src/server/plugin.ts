@@ -54,6 +54,7 @@ import {
 } from './workflow/nodes/employee';
 import { KnowledgeBaseManager } from './ai-employees/ai-knowledge-base';
 import { LLMStreamCachedManager } from './manager/llm-stream-manager';
+import { createFileMountService, type FileMountService } from './ai-employees/file-mount-service';
 
 type MCPClientModel = Model<{ useUserContext?: boolean }>;
 type TransactionOptions = {
@@ -75,6 +76,12 @@ export class PluginAIServer extends Plugin {
   knowledgeBaseManager = new KnowledgeBaseManager(this);
   docsFsCache: DocsFsCache = null;
   snowflake: Snowflake;
+  /**
+   * Optional Layer 1 "file mount" service. `null` when the
+   * NOCOBASE_AI_KB_DIR env var is unset, in which case all file-mount behavior
+   * is skipped (zero behavior change versus baseline). Instantiated in load().
+   */
+  fileMountService: FileMountService | null = null;
 
   /**
    * Check if the AI employee is a builder/admin-only type (e.g., Nathan, Orin).
@@ -165,6 +172,20 @@ export class PluginAIServer extends Plugin {
     registerAIEmployeeTaskNotification(this);
     registerAIConversationReadNotification(this);
     registerOnJobAbortedHandler(this);
+    // Clean up the file-mount sync timer on shutdown to avoid leaking the
+    // interval across app restarts. Mirrors the workflow plugin's pattern.
+    this.app.on('beforeStop', () => {
+      this.fileMountService?.stop();
+    });
+    // Instantiate and start the Layer 1 file-mount service as part of load().
+    // When NOCOBASE_AI_KB_DIR is unset this is a no-op (service stays null), so
+    // the feature has zero behavior change until explicitly opted into. start()
+    // is designed never to throw: it swallows per-scan errors and keeps the
+    // periodic timer running so a later-created dir is still picked up.
+    this.fileMountService = createFileMountService(this);
+    if (this.fileMountService) {
+      await this.fileMountService.start();
+    }
   }
 
   registerLLMProviders() {

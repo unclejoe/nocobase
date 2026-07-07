@@ -873,13 +873,31 @@ export class AIEmployee {
     // block into the system prompt. Orthogonal to the Layer 2 vector knowledge
     // base above (which goes through retrievePrompt). Token budget is enforced
     // here so a large markdown blob cannot blow up the context window.
+    //
+    // MERGE STRATEGY (file-mount overrides DB field): when the optional
+    // NOCOBASE_AI_KB_DIR file-mount service is enabled and has content for this
+    // employee, that on-disk content REPLACES the database `markdownKnowledge`
+    // field. Rationale: file mount is an operator/deployment-level tool meant
+    // to enforce rules across environments, so the on-disk source of truth
+    // wins. When the service is disabled (env var unset) or has no file for
+    // this employee, the DB field stays authoritative — zero behavior change
+    // versus the baseline. `getMarkdownKnowledge` returns undefined in the
+    // disabled/no-match case, so the fallback below is the baseline path.
     let markdownKnowledge: string | undefined;
-    if (employee.markdownKnowledgeEnabled && employee.markdownKnowledge) {
-      const budgeted = applyMarkdownKnowledgeTokenBudget(employee.markdownKnowledge);
+    const fileMountOverride = this.plugin.fileMountService?.getMarkdownKnowledge(this.employee.username);
+    const rawMarkdownKnowledge =
+      fileMountOverride !== undefined
+        ? fileMountOverride
+        : employee.markdownKnowledgeEnabled
+          ? employee.markdownKnowledge
+          : undefined;
+    if (rawMarkdownKnowledge) {
+      const budgeted = applyMarkdownKnowledgeTokenBudget(rawMarkdownKnowledge);
       if (budgeted.truncated) {
         this.logger.warn('AI employee markdownKnowledge exceeded the token budget and was truncated', {
           aiEmployee: this.employee.username,
           budget: budgeted.content.length,
+          source: fileMountOverride !== undefined ? 'fileMount' : 'db',
         });
       }
       markdownKnowledge = budgeted.content;
