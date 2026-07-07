@@ -13,6 +13,7 @@ import { useGlobalTheme } from '@nocobase/client-v2';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
+import useStyle from './MarkdownKnowledgeField.style';
 
 const supportedLocales = ['en_US', 'fr_FR', 'pt_BR', 'ja_JP', 'ko_KR', 'ru_RU', 'sv_SE', 'zh_CN', 'zh_TW'];
 
@@ -38,10 +39,14 @@ const toolbar = [
  * form for the `markdownKnowledge` field (Layer 1 static knowledge).
  *
  * Reuses the same `vditor` package already shipped with the platform's
- * `plugin-field-markdown-vditor`. Dark theme is forwarded to vditor so the
- * editor surface (toolbar / borders) blends with the active antd theme —
- * see `docs/dark-mode-theme-guidelines.md`. No neutral colors are hardcoded;
- * the editor chrome is fully driven by vditor's own `dark` / `classic` skin.
+ * `plugin-field-markdown-vditor`. Theming is two-layer, matching that field:
+ *   1. vditor's own `dark` / `classic` skin (selected from `isDarkTheme`)
+ *      drives the editor chrome — toolbar / borders.
+ *   2. the `genStyleHook` overlay (`MarkdownKnowledgeField.style.ts`) nails
+ *      the IR content-area background to `token.colorBgContainer` and lets
+ *      text color resolve via antd tokens, since vditor's content area does
+ *      not follow theme tokens on its own.
+ * No neutral colors are hardcoded — see `docs/dark-mode-theme-guidelines.md`.
  */
 export const MarkdownKnowledgeEditor: React.FC<{
   value?: string;
@@ -53,6 +58,7 @@ export const MarkdownKnowledgeEditor: React.FC<{
   const containerRef = useRef<HTMLDivElement>(null);
   const vdRef = useRef<Vditor | null>(null);
   const [editorReady, setEditorReady] = useState(false);
+  const { wrapSSR, hashId, componentCls: containerClassName } = useStyle();
 
   const lang: string = useMemo(() => {
     const current = (apiClient.auth.locale || 'en-US').replace(/-/g, '_');
@@ -128,10 +134,12 @@ export const MarkdownKnowledgeEditor: React.FC<{
     }
   }, [disabled, editorReady]);
 
-  return (
-    <div style={{ width: '100%' }} ref={containerRef}>
-      {/* Vditor mounts its own DOM into this container. */}
-    </div>
+  return wrapSSR(
+    <div className={`${hashId} ${containerClassName}`}>
+      <div style={{ width: '100%' }} ref={containerRef}>
+        {/* Vditor mounts its own DOM into this container. */}
+      </div>
+    </div>,
   );
 };
 

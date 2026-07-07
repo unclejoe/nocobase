@@ -8,8 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { FormItem } from '@formily/antd-v5';
-import { Switch } from 'antd';
+import { Form, Switch } from 'antd';
 import { useForm } from '@formily/react';
 import { observer } from '@nocobase/flow-engine';
 import { useT } from '../../locale';
@@ -66,8 +65,8 @@ export const MarkdownKnowledgeSettings: React.FC = observer(() => {
   };
 
   return (
-    <>
-      <FormItem label={t('Enable Markdown Knowledge')}>
+    <Form layout="vertical">
+      <Form.Item label={t('Enable Markdown Knowledge')}>
         <Switch
           checked={enabled}
           onChange={(checked) => {
@@ -75,14 +74,12 @@ export const MarkdownKnowledgeSettings: React.FC = observer(() => {
             form.setValuesIn('markdownKnowledgeEnabled', checked);
           }}
         />
-      </FormItem>
+      </Form.Item>
       {enabled ? (
-        <>
-          <FormItem label={t('Markdown Knowledge')} extra={t('markdown knowledge description')}>
-            <MarkdownKnowledgeEditor value={markdownValue} onChange={handleEditorChange} />
-          </FormItem>
-        </>
+        <Form.Item label={t('Markdown Knowledge')} extra={t('markdown knowledge description')}>
+          <MarkdownKnowledgeEditor value={markdownValue} onChange={handleEditorChange} />
+        </Form.Item>
       ) : null}
-    </>
+    </Form>
   );
 });
