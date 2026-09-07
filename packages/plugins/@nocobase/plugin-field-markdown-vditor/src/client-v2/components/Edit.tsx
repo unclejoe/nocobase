@@ -19,7 +19,7 @@ import useStyle from './style';
 const locales = ['en_US', 'fr_FR', 'pt_BR', 'ja_JP', 'ko_KR', 'ru_RU', 'sv_SE', 'zh_CN', 'zh_TW'];
 
 export const Edit = (props) => {
-  const { disabled, onChange, value, fileCollection, toolbar, editMode = 'ir', mode } = props;
+  const { disabled, onChange, value, fileCollection, toolbar, editMode = 'wysiwyg', mode } = props;
   const flowCtx = useFlowContext();
   const t = useT();
   const { isDarkTheme } = useGlobalTheme();
@@ -73,6 +73,7 @@ export const Edit = (props) => {
       // Vditor ships its own light/dark CSS; pick the one matching the active
       // antd theme so the editor surface (toolbar, borders) blends in.
       theme: isDarkTheme ? 'dark' : 'classic',
+      customWysiwygToolbar() {},
       after: () => {
         vdRef.current = vditor;
         setEditorReady(true);
@@ -107,11 +108,6 @@ export const Edit = (props) => {
           const { data: checkData } = await flowCtx.api.resource('vditor').check({
             fileCollectionName: fileCollection,
           });
-
-          if (!checkData?.data?.isSupportToUploadFiles) {
-            vditor.tip(t('vditor.uploadError.message', { storageTitle: checkData.data.storage?.title }), 0);
-            return;
-          }
 
           vditor.tip(flowCtx.t('uploading'), 0);
           const { data, errorMessage } = await fileManagerPlugin.uploadFile({

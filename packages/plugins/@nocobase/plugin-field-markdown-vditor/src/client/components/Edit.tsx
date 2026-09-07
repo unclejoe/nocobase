@@ -19,6 +19,7 @@ import { useGlobalTheme } from '@nocobase/client-v2';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Vditor from 'vditor';
+import { stripMarkdownIframeTags, stripMarkdownIframes } from '@nocobase/client-v2';
 import { defaultToolbar } from '../interfaces/markdown-vditor';
 import { NAMESPACE } from '../locale';
 import { useCDN } from './const';
@@ -61,13 +62,20 @@ export const Edit = withDynamicSchemaProps((props) => {
     if (!containerRef.current) return;
 
     const toolbarConfig = toolbar ?? defaultToolbar;
+    const safeValue = stripMarkdownIframeTags(value ?? '');
 
     const vditor = new Vditor(containerRef.current, {
-      value: value ?? '',
+      value: safeValue,
       lang,
       cache: { enable: false },
       undoDelay: 0,
-      preview: { math: { engine: 'KaTeX' } },
+      preview: {
+        markdown: {
+          sanitize: true,
+        },
+        math: { engine: 'KaTeX' },
+        transform: stripMarkdownIframes,
+      },
       toolbar: toolbarConfig,
       fullscreen: {
         index: 1200,
@@ -87,8 +95,6 @@ export const Edit = withDynamicSchemaProps((props) => {
         const savedScrollX = window.scrollX || window.pageXOffset;
         const savedScrollY = window.scrollY || window.pageYOffset;
 
-        vditor.setValue(value ?? '');
-
         // Restore scroll position to prevent autoscroll during initialization
         // This fixes the issue where fields without '\n' at the end cause unwanted scrolling
         requestAnimationFrame(() => {
@@ -101,8 +107,12 @@ export const Edit = withDynamicSchemaProps((props) => {
           vditor.enable();
         }
       },
-      input(value) {
-        onChange(value);
+      input(nextValue) {
+        const safeNextValue = stripMarkdownIframeTags(nextValue);
+        if (safeNextValue !== nextValue) {
+          vditor.setValue(safeNextValue);
+        }
+        onChange(safeNextValue);
       },
       upload: {
         multiple: false,
@@ -116,14 +126,6 @@ export const Edit = withDynamicSchemaProps((props) => {
           const { data: checkData } = await apiClient.resource('vditor').check({
             fileCollectionName: fileCollection,
           });
-
-          if (!checkData?.data?.isSupportToUploadFiles) {
-            vditor.tip(
-              t('vditor.uploadError.message', { ns: NAMESPACE, storageTitle: checkData.data.storage?.title }),
-              0,
-            );
-            return;
-          }
 
           vditor.tip(t('uploading'), 0);
           const { data, errorMessage } = await fileManagerPlugin.uploadFile({
@@ -200,13 +202,14 @@ export const Edit = withDynamicSchemaProps((props) => {
   useEffect(() => {
     if (editorReady && vdRef.current) {
       const editor = vdRef.current;
-      if (value !== editor.getValue()) {
+      const safeValue = stripMarkdownIframeTags(value ?? '');
+      if (safeValue !== editor.getValue()) {
         // Save scroll positions before setting value to prevent unwanted autoscroll
         // This fixes the issue where fields without '\n' at the end cause unwanted scrolling
         const savedScrollX = window.scrollX || window.pageXOffset;
         const savedScrollY = window.scrollY || window.pageYOffset;
 
-        editor.setValue(value ?? '');
+        editor.setValue(safeValue);
         // editor.focus();
 
         // Query for preArea after setValue as DOM may have been updated by vditor
@@ -282,7 +285,8 @@ export const Edit = withDynamicSchemaProps((props) => {
   }, [zIndex]);
 
   useLayoutEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -297,10 +301,10 @@ export const Edit = withDynamicSchemaProps((props) => {
       }
     });
 
-    observer.observe(containerRef.current);
+    observer.observe(container);
 
     return () => {
-      observer.unobserve(containerRef.current);
+      observer.unobserve(container);
     };
   }, []);
 

@@ -97,6 +97,7 @@ export default {
      *  topK: number;
      *  score: string;
      *  knowledgeBaseKeys: string[];
+     *  retrievalStrategy: 'always' | 'onDemand';
      * }
      */
     {
@@ -149,6 +150,7 @@ export type AIEmployee = {
     topK: number;
     score: string;
     knowledgeBaseKeys: string[];
+    retrievalStrategy?: 'always' | 'onDemand';
   };
   enableKnowledgeBase: boolean;
   markdownKnowledge?: string;

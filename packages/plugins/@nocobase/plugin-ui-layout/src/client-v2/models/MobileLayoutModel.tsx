@@ -32,6 +32,7 @@ import {
   type LayoutDefinition,
   type RouteModel,
   type RoutePageMeta,
+  useUIConfigurationPermissions,
 } from '@nocobase/client-v2';
 import {
   DndProvider,
@@ -69,6 +70,7 @@ import {
   installMobileLayoutRouteRepository,
   refreshMobileLayoutAccessibleRoutes,
 } from '../mobileRouteRepository';
+import { installMobileDesktopRouteWriteScope } from '../mobileDesktopRouteWriteScope';
 import {
   Icon,
   IconPicker,
@@ -692,6 +694,7 @@ function useIsDesktopPreview(screenMD: number) {
 const MobileLayoutComponentContent = observer((props: { model: MobileLayoutModel }) => {
   const { model } = props;
   const { token } = theme.useToken();
+  const { allowConfigUI } = useUIConfigurationPermissions();
   const isDesktopPreview = useIsDesktopPreview(token.screenMD);
   const [previewSize, setPreviewSize] = useState<MobilePreviewSize>(MOBILE_PREVIEW_SIZE);
   const [flowSettingsPreference, setFlowSettingsPreference] = useState(() =>
@@ -701,9 +704,8 @@ const MobileLayoutComponentContent = observer((props: { model: MobileLayoutModel
   const [flowSettingsSyncVersion, setFlowSettingsSyncVersion] = useState(0);
   const flowSettingsSyncRef = useRef(0);
   const desiredFlowSettingsEnabledRef = useRef(false);
-  const preferredFlowSettingsEnabled = flowSettingsPreference.hasStoredPreference
-    ? flowSettingsPreference.enabled
-    : isMobileMenuEmpty;
+  const preferredFlowSettingsEnabled =
+    allowConfigUI && (flowSettingsPreference.hasStoredPreference ? flowSettingsPreference.enabled : isMobileMenuEmpty);
   const className = useMemo(
     () => css`
       width: 100%;
@@ -783,7 +785,13 @@ const MobileLayoutComponentContent = observer((props: { model: MobileLayoutModel
     ],
   );
   useLayoutEffect(() => {
-    return installMobileLayoutRouteRepository(model);
+    const uninstallRouteRepository = installMobileLayoutRouteRepository(model);
+    const uninstallDesktopRouteWriteScope = installMobileDesktopRouteWriteScope(model);
+
+    return () => {
+      uninstallDesktopRouteWriteScope();
+      uninstallRouteRepository();
+    };
   }, [model]);
 
   useEffect(() => {
@@ -873,6 +881,7 @@ const MobileLayoutComponentContent = observer((props: { model: MobileLayoutModel
     <div className={className}>
       {isDesktopPreview ? (
         <MobileDesktopModeHeader
+          allowConfigUI={allowConfigUI}
           designModeEnabled={preferredFlowSettingsEnabled}
           model={model}
           previewSize={previewSize}
@@ -917,13 +926,14 @@ const MobileLayoutComponent = observer((props: { model: MobileLayoutModel }) => 
 
 const MobileDesktopModeHeader = observer(
   (props: {
+    allowConfigUI: boolean;
     designModeEnabled: boolean;
     model: MobileLayoutModel;
     previewSize: MobilePreviewSize;
     onDesignModeChange: (enabled: boolean) => void;
     onPreviewSizeChange: (size: MobilePreviewSize) => void;
   }) => {
-    const { designModeEnabled, model, previewSize, onDesignModeChange, onPreviewSizeChange } = props;
+    const { allowConfigUI, designModeEnabled, model, previewSize, onDesignModeChange, onPreviewSizeChange } = props;
     const { token } = theme.useToken();
     const customToken = token as typeof token & MobileLayoutThemeToken;
     const colorSettings = customToken.colorSettings || 'var(--colorSettings, #F18B62)';
@@ -985,19 +995,21 @@ const MobileDesktopModeHeader = observer(
     return (
       <header className={className}>
         <div className="nb-ui-layout-mobile-desktop-actions">
-          <Tooltip title={t('UI Editor')}>
-            <button
-              type="button"
-              className="nb-ui-layout-mobile-desktop-action nb-ui-layout-mobile-desktop-design-action"
-              data-testid="ui-editor-button"
-              aria-label={t('UI Editor')}
-              aria-pressed={designModeEnabled}
-              title={t('UI Editor')}
-              onClick={handleToggleDesignMode}
-            >
-              <HighlightOutlined style={{ color: colorTextHeaderMenu }} />
-            </button>
-          </Tooltip>
+          {allowConfigUI ? (
+            <Tooltip title={t('UI Editor')}>
+              <button
+                type="button"
+                className="nb-ui-layout-mobile-desktop-action nb-ui-layout-mobile-desktop-design-action"
+                data-testid="ui-editor-button"
+                aria-label={t('UI Editor')}
+                aria-pressed={designModeEnabled}
+                title={t('UI Editor')}
+                onClick={handleToggleDesignMode}
+              >
+                <HighlightOutlined style={{ color: colorTextHeaderMenu }} />
+              </button>
+            </Tooltip>
+          ) : null}
           <Tooltip title={t('Pad preview')}>
             <button
               type="button"

@@ -21,6 +21,7 @@ If a file `AGENTS.local.md` exists in this repository root, read it once at the 
 - **Theme-aware colors**: never hardcode neutral surface/text colors (`#ffffff`, `#f0f0f0`, `'white'`, light `linear-gradient(...)`, etc.) in UI code — they render wrong in dark/compact-dark themes. Always derive them from antd design tokens via `theme.useToken()` (React components / JSBlockModel) or the `token` arg of `genStyleHook` style hooks. Semantic colors that carry meaning (status green/blue/red, priority tags) stay as fixed hex. See `docs/dark-mode-theme-guidelines.md` for the token mapping and `scripts/theme-replay/` for re-applying DB-stored fixes after a restore.
 - Do not use async IIFE patterns in event handlers (for example: `runAsyncTask((async () => { ... })())`). Extract the async logic into a named async function or call it directly.
 - Do not introduce new abstractions, error-handling layers, or feature flags beyond what the task requires. Three similar lines is better than a premature abstraction.
+- Do not hard-wrap `//` comments at a narrow width. Let each comment line run to the project's `printWidth` (120) before wrapping, so prose fills the line instead of breaking into many short, truncated-looking lines. Verbatim content stays as-is: ASCII diagrams, bullet/numbered lists, blank-line paragraph breaks, and directive lines (`eslint-disable*`, `@ts-*`, `prettier-ignore`) keep their own line breaks.
 
 ## Database & Migrations
 

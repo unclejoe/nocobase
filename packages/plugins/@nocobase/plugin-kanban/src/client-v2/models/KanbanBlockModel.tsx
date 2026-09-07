@@ -19,6 +19,7 @@ import {
   FlowModelRenderer,
   FlowSettingsButton,
   MultiRecordResource,
+  type FlowModel,
 } from '@nocobase/flow-engine';
 import { InputNumber, Space, Switch } from 'antd';
 import React from 'react';
@@ -88,6 +89,26 @@ type KanbanPopupActionOptions = {
   persist?: boolean;
 };
 
+type KanbanPopupActionKey = 'cardViewAction' | 'quickCreateAction';
+
+const unpersistedPopupActionUids = new Set<string>();
+const popupActionInitializationPromises = new WeakMap<object, Partial<Record<KanbanPopupActionKey, Promise<void>>>>();
+const popupActionOperationPromises = new Map<string, Promise<unknown>>();
+
+const POPUP_TEMPLATE_SETTING_KEYS = [
+  'uid',
+  'dataSourceKey',
+  'collectionName',
+  'associationName',
+  'filterByTk',
+  'sourceId',
+  'popupTemplateUid',
+  'popupTemplateMode',
+  'popupTemplateContext',
+  'popupTemplateHasFilterByTk',
+  'popupTemplateHasSourceId',
+];
+
 const DRAG_SORT_FIELD_TIP =
   'Choose the sorting field that matches the current grouping field. Other sorting fields cannot be used for drag sorting.';
 const DRAG_SORT_FIELD_TIP_EXPR = tExpr(DRAG_SORT_FIELD_TIP, { ns: 'kanban' });
@@ -133,6 +154,73 @@ const replaceModelStepParams = (model: any, flowKey: string, stepKey: string, pa
   model.stepParams[flowKey] = model.stepParams[flowKey] || {};
   model.stepParams[flowKey][stepKey] = { ...params };
   model.emitter?.emit?.('onStepParamsChanged');
+};
+
+const getModelStepParams = (model: any, flowKey: string, stepKey: string) => {
+  const stepParams = model?.stepParams?.[flowKey]?.[stepKey];
+  if (stepParams) {
+    return stepParams;
+  }
+
+  try {
+    return model?.getStepParams?.(flowKey, stepKey) || {};
+  } catch {
+    return {};
+  }
+};
+
+const hasKanbanPopupTemplateState = (params?: Record<string, any>) => {
+  if (!params || typeof params !== 'object') {
+    return false;
+  }
+
+  return !!normalizeKanbanPopupTemplateUid(params.popupTemplateUid) || params.popupTemplateContext === true;
+};
+
+const isKanbanPopupTemplateCopyMode = (params?: Record<string, any>) => {
+  return params?.popupTemplateContext === true;
+};
+
+const mergeKanbanPopupTemplateSettings = (baseSettings: Record<string, any>, popupSettings?: Record<string, any>) => {
+  if (!hasKanbanPopupTemplateState(popupSettings)) {
+    return baseSettings;
+  }
+
+  const nextSettings = { ...baseSettings };
+  POPUP_TEMPLATE_SETTING_KEYS.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(popupSettings, key)) {
+      nextSettings[key] = popupSettings[key];
+    }
+  });
+
+  if (popupSettings?.popupTemplateContext === true) {
+    delete nextSettings.popupTemplateUid;
+    delete nextSettings.popupTemplateHasFilterByTk;
+    delete nextSettings.popupTemplateHasSourceId;
+  } else if (popupSettings?.popupTemplateUid) {
+    delete nextSettings.popupTemplateContext;
+  }
+
+  return nextSettings;
+};
+
+const getKanbanPopupActionSettings = (action: any) => getModelStepParams(action, 'popupSettings', 'openView');
+
+const buildKanbanPopupSettingsFromAction = (baseSettings: Record<string, any>, action: any) => {
+  const actionParams = getKanbanPopupActionSettings(action);
+  if (Object.keys(actionParams).length === 0) {
+    return baseSettings;
+  }
+
+  const popupSettings = {
+    ...baseSettings,
+    ...actionParams,
+    uid: actionParams.uid || baseSettings.uid,
+    collectionName: actionParams.collectionName || baseSettings.collectionName,
+    dataSourceKey: actionParams.dataSourceKey || baseSettings.dataSourceKey,
+  };
+
+  return mergeKanbanPopupTemplateSettings(popupSettings, actionParams);
 };
 
 const setKanbanModelProps = (model: any, props: Record<string, any>) => {
@@ -211,13 +299,18 @@ const resolveKanbanPopupTargetUid = ({
   nextPopupTargetUid,
   currentPopupTemplateUid,
   currentPopupTargetUid,
+  popupTemplateCopyMode,
 }: {
   nextPopupTemplateUid?: string;
   nextPopupTargetUid?: string;
   currentPopupTemplateUid?: string;
   currentPopupTargetUid?: string;
+  popupTemplateCopyMode?: boolean;
 }) => {
-  return !nextPopupTemplateUid && currentPopupTemplateUid && nextPopupTargetUid === currentPopupTargetUid
+  return !nextPopupTemplateUid &&
+    !popupTemplateCopyMode &&
+    currentPopupTemplateUid &&
+    nextPopupTargetUid === currentPopupTargetUid
     ? undefined
     : nextPopupTargetUid;
 };
@@ -242,6 +335,7 @@ const applyKanbanBlockPopupSettings = async (
     nextPopupTargetUid,
     currentPopupTemplateUid,
     currentPopupTargetUid,
+    popupTemplateCopyMode: isKanbanPopupTemplateCopyMode(params),
   });
   const normalizedParams = {
     ...params,
@@ -849,12 +943,8 @@ export class KanbanBlockModel extends CollectionBlockModel<{
     return this.subModels?.quickCreateAction?.uid;
   }
 
-  async loadPopupAction(actionKey: 'cardViewAction' | 'quickCreateAction') {
-    try {
-      return await this.flowEngine.loadModel({ parentId: this.uid, subKey: actionKey });
-    } catch (error) {
-      return null;
-    }
+  async loadPopupAction(actionKey: KanbanPopupActionKey) {
+    return await this.flowEngine.loadModel({ parentId: this.uid, subKey: actionKey });
   }
 
   async syncPopupAction(
@@ -867,6 +957,7 @@ export class KanbanBlockModel extends CollectionBlockModel<{
       pageModelClass?: string;
       dataSourceKey?: string;
       collectionName?: string;
+      popupTemplateParams?: Record<string, any>;
     },
     syncOptions: KanbanPopupActionOptions = {},
   ) {
@@ -882,41 +973,48 @@ export class KanbanBlockModel extends CollectionBlockModel<{
     const currentParams = action.getStepParams?.('popupSettings', 'openView') || {};
     const currentPopupTemplateUid = normalizeKanbanPopupTemplateUid(currentParams.popupTemplateUid);
     const currentUid = normalizeKanbanPopupTargetUid(currentParams.uid);
+    const nextTemplateParams = hasKanbanPopupTemplateState(options.popupTemplateParams)
+      ? options.popupTemplateParams
+      : undefined;
+    const currentTemplateParams =
+      !syncOptions.persist && hasKanbanPopupTemplateState(currentParams) ? currentParams : undefined;
+    const templateParams = nextTemplateParams || currentTemplateParams;
+    const templateUid = normalizeKanbanPopupTargetUid(templateParams?.uid);
     let sanitizedUid = nextUid && nextUid !== this.uid && nextUid !== selfUid ? nextUid : undefined;
 
     if (!nextPopupTemplateUid && currentPopupTemplateUid && sanitizedUid === currentUid) {
       sanitizedUid = undefined;
     }
 
-    const resolvedUid = sanitizedUid || (nextPopupTemplateUid ? currentUid || selfUid : selfUid);
+    const resolvedUid = sanitizedUid || templateUid || (nextPopupTemplateUid ? currentUid || selfUid : selfUid);
     const nextPageModelClass = options.pageModelClass || undefined;
     const nextDataSourceKey = options.dataSourceKey || undefined;
     const nextCollectionName = options.collectionName || undefined;
 
-    if (
-      currentParams.mode === nextMode &&
-      currentParams.size === nextSize &&
-      currentParams.popupTemplateUid === nextPopupTemplateUid &&
-      normalizeKanbanPopupTargetUid(currentParams.uid) === resolvedUid &&
-      currentParams.pageModelClass === nextPageModelClass &&
-      currentParams.dataSourceKey === nextDataSourceKey &&
-      currentParams.collectionName === nextCollectionName
-    ) {
+    const nextParams = {
+      ...(templateParams || {}),
+      mode: nextMode,
+      size: nextSize,
+      uid: resolvedUid,
+      pageModelClass: nextPageModelClass,
+      ...(nextPopupTemplateUid ? { popupTemplateUid: nextPopupTemplateUid } : {}),
+      ...(templateParams?.dataSourceKey || nextDataSourceKey
+        ? { dataSourceKey: templateParams?.dataSourceKey || nextDataSourceKey }
+        : {}),
+      ...(templateParams?.collectionName || nextCollectionName
+        ? { collectionName: templateParams?.collectionName || nextCollectionName }
+        : {}),
+    };
+
+    if (!nextPopupTemplateUid && templateParams?.popupTemplateContext === true) {
+      delete nextParams.popupTemplateUid;
+    }
+
+    if (JSON.stringify(currentParams) === JSON.stringify(nextParams)) {
       return;
     }
 
-    const nextParams = {
-      ...(nextPopupTemplateUid ? currentParams : {}),
-      mode: nextMode,
-      size: nextSize,
-      popupTemplateUid: nextPopupTemplateUid,
-      uid: resolvedUid,
-      pageModelClass: nextPageModelClass,
-      ...(nextDataSourceKey ? { dataSourceKey: nextDataSourceKey } : {}),
-      ...(nextCollectionName ? { collectionName: nextCollectionName } : {}),
-    };
-
-    action.setStepParams('popupSettings', 'openView', nextParams);
+    replaceModelStepParams(action, 'popupSettings', 'openView', nextParams);
 
     if (syncOptions.persist && this.context.flowSettingsEnabled && action?.saveStepParams) {
       await action.saveStepParams();
@@ -934,30 +1032,103 @@ export class KanbanBlockModel extends CollectionBlockModel<{
         pageModelClass: this.getCardPopupPageModelClass(),
         dataSourceKey: this.collection?.dataSourceKey,
         collectionName: this.collection?.name,
+        popupTemplateParams: getModelStepParams(this.subModels?.item, 'cardSettings', 'popup'),
       },
       options,
     );
   }
 
-  async ensureCardViewAction(options: KanbanPopupActionOptions = {}) {
-    let action = this.subModels?.cardViewAction as any;
-    if (!action) {
-      const loadedAction = await this.loadPopupAction('cardViewAction');
-      if (loadedAction) {
-        this.setSubModel('cardViewAction', loadedAction);
-      } else {
-        this.setSubModel('cardViewAction', createKanbanCardViewActionOptions());
+  private async initializePopupAction(actionKey: KanbanPopupActionKey, modelOptions: { uid?: string; use: string }) {
+    const loadedAction = await this.loadPopupAction(actionKey);
+    if (this.subModels?.[actionKey]) {
+      return;
+    }
+    if (loadedAction) {
+      this.setSubModel(actionKey, loadedAction);
+      return;
+    }
+    const createdAction = this.flowEngine.createModel({
+      ...modelOptions,
+      parentId: this.uid,
+      subKey: actionKey,
+      subType: 'object',
+    });
+    unpersistedPopupActionUids.add(createdAction.uid);
+    this.setSubModel(actionKey, createdAction);
+  }
+
+  private async getOrInitializePopupAction(
+    actionKey: KanbanPopupActionKey,
+    modelOptions: { uid?: string; use: string },
+  ): Promise<FlowModel | undefined> {
+    const currentAction = this.subModels?.[actionKey] as FlowModel | undefined;
+    if (currentAction) {
+      return currentAction;
+    }
+
+    let initializationState = popupActionInitializationPromises.get(this);
+    if (!initializationState) {
+      initializationState = {};
+      popupActionInitializationPromises.set(this, initializationState);
+    }
+    let initializationPromise = initializationState[actionKey];
+    if (!initializationPromise) {
+      initializationPromise = this.initializePopupAction(actionKey, modelOptions);
+      initializationState[actionKey] = initializationPromise;
+    }
+    try {
+      await initializationPromise;
+    } finally {
+      if (initializationState[actionKey] === initializationPromise) {
+        delete initializationState[actionKey];
       }
-      action = this.subModels?.cardViewAction as any;
+    }
+    return this.subModels?.[actionKey] as FlowModel | undefined;
+  }
+
+  private async persistNewPopupAction(
+    action: FlowModel | undefined,
+    options: KanbanPopupActionOptions,
+  ): Promise<boolean> {
+    if (
+      !options.persist ||
+      !this.context.flowSettingsEnabled ||
+      !action ||
+      !unpersistedPopupActionUids.has(action.uid)
+    ) {
+      return false;
     }
 
-    if (options.persist && this.context.flowSettingsEnabled && action?.save) {
-      await action.save();
+    await action.save();
+    return true;
+  }
+
+  private async runPopupActionOperation<T>(action: FlowModel, operation: () => Promise<T>): Promise<T> {
+    const previousOperation = popupActionOperationPromises.get(action.uid) || Promise.resolve();
+    const operationPromise = previousOperation.catch(() => undefined).then(operation);
+    popupActionOperationPromises.set(action.uid, operationPromise);
+    try {
+      return await operationPromise;
+    } finally {
+      if (popupActionOperationPromises.get(action.uid) === operationPromise) {
+        popupActionOperationPromises.delete(action.uid);
+      }
     }
+  }
 
-    await this.syncCardViewAction(action, options);
-
-    return action;
+  async ensureCardViewAction(options: KanbanPopupActionOptions = {}) {
+    const action = await this.getOrInitializePopupAction('cardViewAction', createKanbanCardViewActionOptions());
+    if (!action) {
+      return action;
+    }
+    return await this.runPopupActionOperation(action, async () => {
+      const didPersist = await this.persistNewPopupAction(action, options);
+      await this.syncCardViewAction(action, options);
+      if (didPersist) {
+        unpersistedPopupActionUids.delete(action.uid);
+      }
+      return action;
+    });
   }
 
   getQuickCreateAction() {
@@ -965,24 +1136,18 @@ export class KanbanBlockModel extends CollectionBlockModel<{
   }
 
   async ensureQuickCreateAction(options: KanbanPopupActionOptions = {}) {
-    let action = this.subModels?.quickCreateAction as any;
+    const action = await this.getOrInitializePopupAction('quickCreateAction', createKanbanQuickCreateActionOptions());
     if (!action) {
-      const loadedAction = await this.loadPopupAction('quickCreateAction');
-      if (loadedAction) {
-        this.setSubModel('quickCreateAction', loadedAction);
-      } else {
-        this.setSubModel('quickCreateAction', createKanbanQuickCreateActionOptions());
+      return action;
+    }
+    return await this.runPopupActionOperation(action, async () => {
+      const didPersist = await this.persistNewPopupAction(action, options);
+      await this.syncQuickCreateAction(action, options);
+      if (didPersist) {
+        unpersistedPopupActionUids.delete(action.uid);
       }
-      action = this.subModels?.quickCreateAction as any;
-    }
-
-    if (options.persist && this.context.flowSettingsEnabled && action?.save) {
-      await action.save();
-    }
-
-    await this.syncQuickCreateAction(action, options);
-
-    return action;
+      return action;
+    });
   }
 
   async syncQuickCreateAction(action: any, options: KanbanPopupActionOptions = {}) {
@@ -996,6 +1161,7 @@ export class KanbanBlockModel extends CollectionBlockModel<{
         pageModelClass: this.getPopupPageModelClass(),
         dataSourceKey: this.collection?.dataSourceKey,
         collectionName: this.collection?.name,
+        popupTemplateParams: getModelStepParams(this, 'kanbanSettings', 'popup'),
       },
       options,
     );
@@ -1048,7 +1214,17 @@ export class KanbanBlockModel extends CollectionBlockModel<{
       return;
     }
 
-    const action = await this.ensureQuickCreateAction();
+    let action: FlowModel | undefined;
+    try {
+      action = await this.ensureQuickCreateAction();
+    } catch (error) {
+      await this.openEmptyPopupShell({
+        mode: this.getPopupMode(),
+        size: this.getPopupSize(),
+        title: this.translate('Add new', { ns: 'kanban' }),
+      });
+      return;
+    }
     if (!action?.uid) {
       await this.openEmptyPopupShell({
         mode: this.getPopupMode(),
@@ -1059,16 +1235,6 @@ export class KanbanBlockModel extends CollectionBlockModel<{
     }
 
     try {
-      if (typeof this.context?.openView === 'function') {
-        await this.context.openView(action.uid, {
-          formData: this.buildQuickCreateFormData(column),
-          ...(this.collection?.dataSourceKey ? { dataSourceKey: this.collection.dataSourceKey } : {}),
-          ...(this.collection?.name ? { collectionName: this.collection.name } : {}),
-          target: this.context.layoutContentElement,
-        });
-        return;
-      }
-
       await action.dispatchEvent(
         'click',
         {
@@ -1093,7 +1259,22 @@ export class KanbanBlockModel extends CollectionBlockModel<{
       return;
     }
 
-    const action = await this.ensureCardViewAction();
+    // The drawer content is stored under the hidden card action. Persist that
+    // host before users add blocks in configuration mode so the content can be
+    // loaded again after the drawer is destroyed.
+    let action: FlowModel | undefined;
+    try {
+      action = this.context?.flowSettingsEnabled
+        ? await this.ensureCardViewAction({ persist: true })
+        : await this.ensureCardViewAction();
+    } catch (error) {
+      await this.openEmptyPopupShell({
+        mode: this.getCardOpenMode(),
+        size: this.getCardPopupSize(),
+        title: this.translate('Details'),
+      });
+      return;
+    }
     if (!action || !record) {
       await this.openEmptyPopupShell({
         mode: this.getCardOpenMode(),
@@ -1109,17 +1290,6 @@ export class KanbanBlockModel extends CollectionBlockModel<{
     }
 
     try {
-      if (typeof this.context?.openView === 'function' && action.uid) {
-        await this.context.openView(action.uid, {
-          mode: this.getCardOpenMode(),
-          ...(this.collection?.dataSourceKey ? { dataSourceKey: this.collection.dataSourceKey } : {}),
-          ...(this.collection?.name ? { collectionName: this.collection.name } : {}),
-          filterByTk,
-          target: this.context.layoutContentElement,
-        });
-        return;
-      }
-
       await action.dispatchEvent(
         'click',
         {
@@ -1527,26 +1697,46 @@ KanbanBlockModel.registerFlow({
         return !(enabled ?? defaultEnabled);
       },
       async defaultParams(ctx) {
+        const model = ctx.model as KanbanBlockModel;
         const commonParams = await resolveKanbanOpenViewDefaultParams(ctx as any);
+        const action =
+          typeof model.ensureQuickCreateAction === 'function'
+            ? await model.ensureQuickCreateAction()
+            : typeof model.getQuickCreateAction === 'function'
+              ? model.getQuickCreateAction()
+              : undefined;
         const popupPageModelClass =
-          typeof (ctx.model as KanbanBlockModel).getPopupPageModelClass === 'function'
-            ? (ctx.model as KanbanBlockModel).getPopupPageModelClass()
+          typeof model.getPopupPageModelClass === 'function'
+            ? model.getPopupPageModelClass()
             : ctx.model?.props?.popupPageModelClass;
-        return {
-          ...commonParams,
-          mode: (ctx.model as KanbanBlockModel).getPopupMode(),
-          size: (ctx.model as KanbanBlockModel).getPopupSize(),
-          popupTemplateUid: (ctx.model as KanbanBlockModel).getPopupTemplateUid(),
-          pageModelClass: popupPageModelClass || commonParams.pageModelClass,
-          uid: (ctx.model as KanbanBlockModel).getPopupTargetUid(),
-        };
+        return buildKanbanPopupSettingsFromAction(
+          {
+            ...commonParams,
+            mode: model.getPopupMode(),
+            size: model.getPopupSize(),
+            popupTemplateUid: model.getPopupTemplateUid(),
+            pageModelClass: popupPageModelClass || commonParams.pageModelClass,
+            uid: model.getPopupTargetUid(),
+          },
+          action,
+        );
       },
       async handler(ctx, params) {
         await applyKanbanBlockPopupSettings(ctx.model as KanbanBlockModel, params, { persist: false });
       },
       async beforeParamsSave(ctx, params, previousParams) {
-        await ctx.model?.getAction?.('openView')?.beforeParamsSave?.(ctx, params, previousParams);
-        await applyKanbanBlockPopupSettings(ctx.model as KanbanBlockModel, params, { persist: true });
+        const model = ctx.model as KanbanBlockModel;
+        const action =
+          typeof model.ensureQuickCreateAction === 'function'
+            ? await model.ensureQuickCreateAction()
+            : typeof model.getQuickCreateAction === 'function'
+              ? model.getQuickCreateAction()
+              : undefined;
+        const storedParams = getKanbanPopupActionSettings(action);
+        await ctx.model
+          ?.getAction?.('openView')
+          ?.beforeParamsSave?.(ctx, params, Object.keys(storedParams).length > 0 ? storedParams : previousParams);
+        await applyKanbanBlockPopupSettings(model, params, { persist: true });
       },
     },
     pageSize: {

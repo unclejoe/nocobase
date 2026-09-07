@@ -56,6 +56,7 @@ type FieldInterfaceOption = {
   name: string;
   title?: React.ReactNode;
   label?: React.ReactNode;
+  creatable?: boolean;
   group?: string;
   order?: number;
   hidden?: boolean;
@@ -1510,7 +1511,7 @@ export default function FieldsPage(props: FieldsPageProps) {
 
           return (
             <Select
-              allowClear
+              allowClear={false}
               value={value || undefined}
               style={{ width: '100%' }}
               popupMatchSelectWidth={false}

@@ -8,9 +8,11 @@
  */
 
 import { type FlowEngine, useFlowContext, useFlowEngine } from '@nocobase/flow-engine';
+import { Button, Result } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { deviceType } from 'react-device-detect';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { getModernClientPrefix, stripModernClientPrefix } from '../../authRedirect';
 import { useApp } from '../../hooks/useApp';
 import { NocoBaseDesktopRouteType, type NocoBaseDesktopRoute } from '../../flow-compat';
 import {
@@ -22,12 +24,14 @@ import { getLayoutModel, type BaseLayoutModel } from '../admin-shell/BaseLayoutM
 import { useLayoutRoutePage } from '../admin-shell/useLayoutRoutePage';
 import { AppNotFound } from '../../components';
 import { useKeepAlive } from '../../components/KeepAlive';
+import { registerDeviceTypeContext } from '../internal/registerDeviceTypeContext';
 
 type FlowRouteGuardState = {
   pageUid?: string;
   pending: boolean;
   allowBridge: boolean;
   notFound: boolean;
+  legacyPageUnsupported?: boolean;
 };
 
 export type LegacyPageBehavior = 'redirect' | 'notFound' | 'bridge';
@@ -156,31 +160,9 @@ const BridgeFlowRoute = ({
   const layoutContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    flowEngine.context.defineProperty('deviceType', {
-      get: () => (deviceType === 'browser' ? 'computer' : deviceType),
-      cache: false,
-      meta: {
-        type: 'string',
-        title: flowEngine.translate('Current device type'),
-        interface: 'select',
-        uiSchema: {
-          enum: [
-            { label: flowEngine.translate('Computer'), value: 'computer' },
-            { label: flowEngine.translate('Mobile'), value: 'mobile' },
-            { label: flowEngine.translate('Tablet'), value: 'tablet' },
-            { label: flowEngine.translate('SmartTv'), value: 'smarttv' },
-            { label: flowEngine.translate('Console'), value: 'console' },
-            { label: flowEngine.translate('Wearable'), value: 'wearable' },
-            { label: flowEngine.translate('Embedded'), value: 'embedded' },
-          ],
-          'x-component': 'Select',
-        },
-      },
-      info: {
-        description: 'Current device type (computer/mobile/tablet/...).',
-        detail: 'string',
-      },
-    });
+    if (!flowEngine.context.getPropertyOptions('deviceType')) {
+      registerDeviceTypeContext(flowEngine);
+    }
   }, [flowEngine]);
 
   useLayoutRoutePage({
@@ -195,11 +177,58 @@ const BridgeFlowRoute = ({
   return <div ref={layoutContentRef} />;
 };
 
+type RouteLocation = {
+  pathname: string;
+  search: string;
+  hash: string;
+};
+
+const getLegacyPageHref = (app: { getPublicPath: () => string }, location: RouteLocation) => {
+  const modernPublicPath = app.getPublicPath();
+  const browserLocationMatchesPublicPath = window.location.pathname.startsWith(modernPublicPath);
+  const currentLocation = browserLocationMatchesPublicPath ? window.location : location;
+  const pathWithinModernClient = currentLocation.pathname.startsWith(modernPublicPath)
+    ? currentLocation.pathname.slice(modernPublicPath.length)
+    : currentLocation.pathname.replace(/^\/+/, '');
+  return `${stripModernClientPrefix(modernPublicPath)}${pathWithinModernClient}${currentLocation.search}${
+    currentLocation.hash
+  }`;
+};
+
+const LegacyPageUnsupported = ({
+  app,
+  location,
+}: {
+  app: { getPublicPath: () => string };
+  location: RouteLocation;
+}) => {
+  const { t } = useTranslation();
+  const modernClientPath = `/${getModernClientPrefix()}/`;
+  const withModernClientPath = (message: string) => message.replaceAll('{{modernClientPath}}', modernClientPath);
+
+  return (
+    <Result
+      status="warning"
+      title={withModernClientPath(t('This page is not supported in the {{modernClientPath}} branch'))}
+      subTitle={withModernClientPath(
+        t(
+          'The {{modernClientPath}} branch only supports new pages. This page is a legacy page. Please open it from the original entry.',
+        ),
+      )}
+      extra={
+        <Button href={getLegacyPageHref(app, location)} type="primary">
+          {t('Open from the original entry')}
+        </Button>
+      }
+    />
+  );
+};
+
 /**
  * 管理后台动态页面路由组件。
  *
- * 负责读取当前路由页面 UID，补充运行时设备变量，
- * 并把页面生命周期桥接到 AdminLayout host model。
+ * 负责读取当前路由页面 UID，并把页面生命周期桥接到 AdminLayout host model。
+ * 设备变量通常由 PluginFlowEngine 共享初始化提供；独立渲染时会在挂载后补充注册。
  *
  * @example
  * ```tsx
@@ -274,11 +303,12 @@ const FlowRoute = (props: FlowRouteProps = {}) => {
   useEffect(() => {
     let active = true;
     const requestId = ++requestIdRef.current;
+    const requiresAccessibleRoute = shouldRequireAccessibleRoute(routeLayout);
 
     const run = async () => {
       setGuardState({ pageUid, pending: true, allowBridge: false, notFound: false });
 
-      if (!skipRouteRepositoryCheck && !routeRepository?.isAccessibleLoaded?.()) {
+      if (requiresAccessibleRoute && !skipRouteRepositoryCheck && !routeRepository?.isAccessibleLoaded?.()) {
         try {
           await routeRepository?.ensureAccessibleLoaded?.();
         } catch (_error) {
@@ -293,8 +323,11 @@ const FlowRoute = (props: FlowRouteProps = {}) => {
         return;
       }
 
-      const route = skipRouteRepositoryCheck ? undefined : getAccessibleRouteByPageUid(routeRepository, pageUid);
-      if (!route && !skipRouteRepositoryCheck && shouldRequireAccessibleRoute(routeLayout)) {
+      const route =
+        skipRouteRepositoryCheck || !requiresAccessibleRoute
+          ? undefined
+          : getAccessibleRouteByPageUid(routeRepository, pageUid);
+      if (!route && !skipRouteRepositoryCheck && requiresAccessibleRoute) {
         setGuardState({ pageUid, pending: false, allowBridge: false, notFound: true });
         return;
       }
@@ -373,7 +406,13 @@ const FlowRoute = (props: FlowRouteProps = {}) => {
 
         if (target.reason === 'unsupportedV2Runtime') {
           if (active && requestId === requestIdRef.current) {
-            setGuardState({ pageUid, pending: false, allowBridge: false, notFound: true });
+            setGuardState({
+              pageUid,
+              pending: false,
+              allowBridge: false,
+              notFound: false,
+              legacyPageUnsupported: true,
+            });
           }
           return;
         }
@@ -410,6 +449,10 @@ const FlowRoute = (props: FlowRouteProps = {}) => {
       return <AppNotFound />;
     }
 
+    if (guardState.legacyPageUnsupported) {
+      return <LegacyPageUnsupported app={app} location={location} />;
+    }
+
     if (!guardState.allowBridge) {
       return null;
     }
@@ -417,11 +460,14 @@ const FlowRoute = (props: FlowRouteProps = {}) => {
     return <BridgeFlowRoute pageUid={pageUid} active={active} getLayoutModel={getLayoutModel} />;
   }, [
     active,
+    app,
     getLayoutModel,
     guardState.allowBridge,
+    guardState.legacyPageUnsupported,
     guardState.notFound,
     guardState.pageUid,
     guardState.pending,
+    location,
     pageUid,
   ]);
 

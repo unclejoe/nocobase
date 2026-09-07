@@ -54,8 +54,8 @@ export default {
       name: 'result',
     },
     {
-      type: 'json',
-      name: 'meta',
+      type: 'datetime',
+      name: 'startedAt',
     },
     /**
      * @experimental
@@ -65,4 +65,5 @@ export default {
       name: 'log',
     },
   ],
+  indexes: [{ fields: ['status', 'id'] }],
 };
