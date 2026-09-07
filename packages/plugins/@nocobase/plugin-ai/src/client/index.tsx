@@ -45,6 +45,7 @@ const LLMServices = lazy(() => import('../client-v2/pages/LLMServicesPage'));
 const MCPSettings = lazy(() => import('../client-v2/pages/MCPSettingsPage'));
 const AdminSettings = lazy(() => import('../client-v2/pages/AdminSettingsPage'));
 const DatasourceSettingPage = lazy(() => import('../client-v2/pages/DatasourceSettingsPage'));
+const MarkdownKnowledgeSettingPage = lazy(() => import('../client-v2/ai-employees/admin/MarkdownKnowledgePage'));
 const { AIResourceContextCollector } = lazy(
   () => import('./ai-employees/1.x/selector/AIContextCollector'),
   'AIResourceContextCollector',
@@ -116,6 +117,13 @@ export class PluginAIClient extends Plugin {
       title: tval('MCP settings', { ns: namespace }),
       aclSnippet: 'pm.ai.mcp-settings',
       Component: MCPSettings,
+    });
+    this.app.pluginSettingsManager.add('ai.markdown-knowledge', {
+      sort: 40,
+      icon: 'FileTextOutlined',
+      title: tval('Markdown Knowledge', { ns: namespace }),
+      aclSnippet: 'pm.ai',
+      Component: MarkdownKnowledgeSettingPage,
     });
     this.app.pluginSettingsManager.add('ai.datasource', {
       sort: 99,

@@ -104,7 +104,7 @@ export const registerPluginAISettingsPages = (
     key: 'markdown-knowledge',
     icon: 'FileTextOutlined',
     title: t('Markdown Knowledge'),
-    aclSnippet: 'pm.ai.markdown-knowledge',
+    aclSnippet: 'pm.ai',
     componentLoader: () => import('./ai-employees/admin/MarkdownKnowledgePage'),
     sort: 40,
   });
