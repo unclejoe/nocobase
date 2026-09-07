@@ -39,11 +39,12 @@ describe('plugin-ai v2 settings registration', () => {
       sort: 400,
       showTabs: true,
     });
-    expect(addPageTabItem).toHaveBeenCalledTimes(4);
+    expect(addPageTabItem).toHaveBeenCalledTimes(5);
     expect(addPageTabItem.mock.calls.map(([item]) => [item.menuKey, item.key, item.aclSnippet])).toEqual([
       ['ai', 'employees', 'pm.ai.employees'],
       ['ai', 'llm-services', 'pm.ai.llm-services'],
       ['ai', 'mcp-settings', 'pm.ai.mcp-settings'],
+      ['ai', 'markdown-knowledge', 'pm.ai'],
       ['ai', 'settings', 'pm.ai.settings'],
     ]);
     addPageTabItem.mock.calls.forEach(([item]) => {
