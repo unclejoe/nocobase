@@ -136,7 +136,7 @@ function ApprovalDetail({ record, onClose }: { record: ApprovalRecord; onClose: 
     : [];
 
   return (
-    <Drawer open width={520} onClose={onClose} title={t('Approval records')}>
+    <div>
       {snapshotRows.length > 0 ? (
         <>
           <Text strong>{t('Business snapshot')}</Text>
@@ -207,7 +207,7 @@ function ApprovalDetail({ record, onClose }: { record: ApprovalRecord; onClose: 
           aria-label={t('Return to')}
         />
       </Modal>
-    </Drawer>
+    </div>
   );
 }
 
@@ -271,7 +271,7 @@ function RecordTable({ status }: { status: number }) {
           onChange: setPage,
         }}
       />
-      <Drawer open={open} onClose={() => setOpen(false)} width={520}>
+      <Drawer open={open} onClose={() => setOpen(false)} width={520} title={t('Approval records')}>
         <DrawerFormLayout title={t('Approval detail')}>
           {selected ? <ApprovalDetail record={selected} onClose={() => setOpen(false)} /> : null}
         </DrawerFormLayout>

@@ -17,7 +17,7 @@
 
 import React, { useState } from 'react';
 import { useAPIClient } from '@nocobase/client';
-import { Button, Drawer, Input, Modal, Select, Space, Timeline, Typography, message } from 'antd';
+import { Button, Input, Modal, Select, Space, Timeline, Typography, message } from 'antd';
 import { APPROVAL_RECORD_COLLECTION, APPROVAL_RECORD_STATUS, TASK_TYPE_APPROVAL } from '../common/constants';
 import { lang, NAMESPACE, usePluginTranslation } from '../locale';
 
@@ -101,7 +101,7 @@ export function ApprovalDetail({ record, onClose }: { record: ApprovalRecordRow;
     : [];
 
   return (
-    <Drawer open width={520} onClose={onClose} title={t('Approval records')}>
+    <div>
       {snapshotRows.length > 0 ? (
         <>
           <Text strong>{t('Business snapshot')}</Text>
@@ -177,7 +177,7 @@ export function ApprovalDetail({ record, onClose }: { record: ApprovalRecordRow;
           aria-label={t('Return to')}
         />
       </Modal>
-    </Drawer>
+    </div>
   );
 }
 

@@ -167,7 +167,7 @@ function RecordTable({ status }: { status: number }) {
           showSizeChanger: false,
         }}
       />
-      <Drawer open={open} onClose={() => setOpen(false)} width={520}>
+      <Drawer open={open} onClose={() => setOpen(false)} width={520} title={t('Approval records')}>
         {selected ? (
           <ApprovalDetail
             record={selected}
