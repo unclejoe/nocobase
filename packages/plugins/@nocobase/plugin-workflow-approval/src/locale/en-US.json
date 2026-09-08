@@ -58,5 +58,7 @@
   "Add audience": "Add audience",
   "Who can view this workflow's approvals. Leave empty to keep approvals visible to all logged-in users.": "Who can view this workflow's approvals. Leave empty to keep approvals visible to all logged-in users.",
   "Return to": "Return to",
-  "Select return target node": "Select return target node"
+  "Select return target node": "Select return target node",
+  "Remove": "Remove",
+  "Please select a collection": "Please select a collection"
 }

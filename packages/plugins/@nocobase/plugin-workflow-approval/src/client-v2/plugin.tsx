@@ -17,12 +17,21 @@
 import type { Application } from '@nocobase/client-v2';
 import { Plugin } from '@nocobase/client-v2';
 
-import { NAMESPACE } from '../common/constants';
+import WorkflowPlugin from '@nocobase/plugin-workflow/client-v2';
+
+import { NAMESPACE, TRIGGER_TYPE } from '../common/constants';
 import { RelatedApprovalsModel } from './RelatedApprovalsModel';
 import { registerSubmitForApprovalAction } from './SubmitForApprovalActionModel';
+import ApprovalTriggerV2 from './triggers/ApprovalTrigger';
 
 export class PluginWorkflowApprovalClientV2 extends Plugin<Record<string, never>, Application> {
   async load() {
+    // Register the approval trigger into the v2 workflow canvas so workflows of
+    // this type can be selected, configured and executed there (the server-side
+    // trigger is shared with v1; only the config form needed a v2 port).
+    const workflow = this.app.pm.get('workflow') as WorkflowPlugin;
+    workflow.registerTrigger(TRIGGER_TYPE, ApprovalTriggerV2);
+
     // Register the FlowModel class backing the 审批 tab's related-approvals
     // list block. Without this, the tab throws
     // "Model class 'RelatedApprovalsModel' not found. Please register it first."

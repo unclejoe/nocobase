@@ -19,5 +19,7 @@
   "Webhook received": "Webhook 已接收",
   "Use JSON as trigger data for testing.": "使用 JSON 作为测试触发数据。",
   "Request body sample": "请求体样例",
-  "Paste a JSON sample of the request body. Fields are parsed automatically and become selectable as trigger variables.": "粘贴请求体的 JSON 样例，字段会自动解析并成为可在节点中选择的触发器变量。"
+  "Paste a JSON sample of the request body. Fields are parsed automatically and become selectable as trigger variables.": "粘贴请求体的 JSON 样例，字段会自动解析并成为可在节点中选择的触发器变量。",
+  "Invalid JSON": "无效的 JSON",
+  "Send HTTP requests to this URL to trigger the workflow": "向此地址发送 HTTP 请求即可触发工作流"
 }
