@@ -1,0 +1,32 @@
+services:
+  app:
+    # TAG selects the shipped image version, e.g. TAG=e3c3e37c6a (see README upgrade flow).
+    image: danai-nocobase:${TAG:-latest}
+    ports:
+      - "13000:80"
+    volumes:
+      - ./storage:/app/nocobase/storage:Z
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+
+  postgres:
+    image: postgres:16
+    command: postgres -c wal_level=logical
+    environment:
+      POSTGRES_USER: ${DB_USER:-nocobase}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_DATABASE:-nocobase}
+    volumes:
+      - ./storage/db/postgres:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nocobase} -d ${DB_DATABASE:-nocobase}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped

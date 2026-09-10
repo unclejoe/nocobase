@@ -1,6 +1,11 @@
 # 计划：从源码构建 NocoBase Docker 镜像 + 团队部署 Compose
 
-> 状态：**已规划，未实施**。本文档保存方案备查，待需要时按此执行。
+> 状态：**已实施（2026-09-10）**，并升级为 Podman 离线 tar 云端部署方案。实际落地的文件以
+> `docker/danai/build/`（Dockerfile、build.ignore、docker-entrypoint.sh）、`docker/danai/deploy/`
+> （compose、.env.example、README）与 `docker/danai/ship.sh`（一键构建/导出/远端部署）为准。
+> 本文档保留原始调研结论；与实现的差异：Node 基础镜像与 engines 现为 v22（原文写 >=18）；
+> 根 `.dockerignore` 不足以排除 node_modules/.git/storage/docs，实际用 `podman build
+> --ignorefile` + 专用 build.ignore；`db:auth` 缺失的结论已验证并按此实现（等待循环替代）。
 > 日期：2026-07-07
 > 适用分支：`feat/ai-employee-markdown-kb`
 

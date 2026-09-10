@@ -1,0 +1,23 @@
+# Build-context filter for docker/danai/build/Dockerfile (podman build --ignorefile).
+# The repo-root .dockerignore does NOT exclude these, and without them the context
+# would ship ~4GB (node_modules 2.9G, .git 409M, storage 277M, docs 89M).
+node_modules
+**/node_modules
+.git
+.gitignore
+.docs
+docs
+docs-dist
+benchmark
+examples
+storage
+.agents
+.zcode
+.claude
+CLAUDE.md
+*.log
+# Only the live dev .env is secret. The *.example templates must stay in the context:
+# cli-v1 command modules readFileSync('.env.e2e.example') at module load (p-test.js:25).
+.env
+docker/danai/deploy
+docker/app-*
