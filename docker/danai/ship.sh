@@ -23,6 +23,7 @@ while [ $# -gt 0 ]; do
     -p) SSH_PORT="$2"; shift 2 ;;
     --remote-dir) REMOTE_DIR="$2"; shift 2 ;;
     --build-only) BUILD_ONLY=1; shift ;;
+    --force-build) FORCE_BUILD=1; shift ;;
     -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
     *) REMOTE="$1"; shift ;;
   esac
@@ -37,14 +38,23 @@ cd "$REPO_ROOT"
 TAG="$(git rev-parse --short HEAD)"
 TAR_FILE="/tmp/${IMAGE_NAME}-${TAG}.tar"
 
-echo "==> [1/5] building ${IMAGE_NAME}:${TAG} (source build, 20-40 min)..."
-podman build \
-  --ignorefile docker/danai/build/build.ignore \
-  -f docker/danai/build/Dockerfile \
-  --build-arg "COMMIT_HASH=${TAG}" \
-  -t "${IMAGE_NAME}:${TAG}" \
-  -t "${IMAGE_NAME}:latest" \
-  .
+# An existing local image with the HEAD tag means this exact source was already built — shipping
+# it as-is keeps a full 40-minute rebuild off the critical path (pass --force-build to redo).
+# Note: `podman image prune` (dangling) deletes the builder-stage cache layer, after which the
+# next real build runs from scratch.
+if [ "${FORCE_BUILD:-0}" -ne 1 ] && podman image exists "${IMAGE_NAME}:${TAG}"; then
+  echo "==> [1/5] ${IMAGE_NAME}:${TAG} already built locally; skipping build (--force-build to rebuild)"
+  podman tag "${IMAGE_NAME}:${TAG}" "${IMAGE_NAME}:latest"
+else
+  echo "==> [1/5] building ${IMAGE_NAME}:${TAG} (source build, 20-40 min)..."
+  podman build \
+    --ignorefile docker/danai/build/build.ignore \
+    -f docker/danai/build/Dockerfile \
+    --build-arg "COMMIT_HASH=${TAG}" \
+    -t "${IMAGE_NAME}:${TAG}" \
+    -t "${IMAGE_NAME}:latest" \
+    .
+fi
 
 if [ "$BUILD_ONLY" -eq 1 ]; then
   echo "==> build-only: image ${IMAGE_NAME}:${TAG} ready (${TAR_FILE} not created)"
