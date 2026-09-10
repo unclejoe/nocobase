@@ -1,194 +1,155 @@
-# 计划：从源码构建 NocoBase Docker 镜像 + 团队部署 Compose
+# DAN.AI NocoBase — Podman 源码镜像打包 + 离线云端部署方案（已实施）
 
-> 状态：**已实施（2026-09-10）**，并升级为 Podman 离线 tar 云端部署方案。实际落地的文件以
-> `docker/danai/build/`（Dockerfile、build.ignore、docker-entrypoint.sh）、`docker/danai/deploy/`
-> （compose、.env.example、README）与 `docker/danai/ship.sh`（一键构建/导出/远端部署）为准。
-> 本文档保留原始调研结论；与实现的差异：Node 基础镜像与 engines 现为 v22（原文写 >=18）；
-> 根 `.dockerignore` 不足以排除 node_modules/.git/storage/docs，实际用 `podman build
-> --ignorefile` + 专用 build.ignore；`db:auth` 缺失的结论已验证并按此实现（等待循环替代）。
-> 日期：2026-07-07
-> 适用分支：`feat/ai-employee-markdown-kb`
+> 状态：**已实施并验证（2026-09-10）**。本文档描述实际落地的方案；原始 2026-07-07 调研结论中
+> 已过时的部分（Node >=18、postgres:16、`.dockerignore` 足够可用等）均已按实现修正。
+> 实施提交：`4b1efeba54`（打包主体）、`536a11b4a9`（构建类型修复）、`db101eff77`（load 标签
+> 错挂防护）、`e6345d3261`（postgres 版本对齐）。
 
 ## 目标
 
-- 从当前仓库源码（含 `feat/ai-employee-markdown-kb` 分支自定义代码）构建 Docker 镜像，**不发布到 registry、不用 verdaccio、不用 create-nocobase-app**。
-- 镜像 `docker save` 导出 tar，团队拷贝后 `docker load`，配合 compose 直接 `up -d` 启动。
-- 配置锁定：**PostgreSQL + 镜像内置 nginx（与官方一致）+ 离线 docker save/load 分发**。
-- **所有新增文件统一放在 `docker/danai/` 下，分两个子目录**：
-  - `docker/danai/build/` — 镜像构建相关
-  - `docker/danai/deploy/` — 团队部署相关
+- 从**本仓库源码**构建生产镜像（官方 Dockerfile 从 npm 发布包构建，不含本 fork 的自定义
+  插件 plugin-ai / plugin-workflow-approval / 品牌定制，故不可用）。
+- **离线 tar 分发**到云端：`podman save` → rsync → 远端 `podman load`，不依赖任何镜像仓库
+  （本机网络 Docker Hub 不可达）。云端数据库为 **compose 内置 PostgreSQL 18**，与本地
+  dev/prod 数据库（`nocobase-postgres-saved`，PG 18.6）同版本，pg_dump 双向可恢复。
+- 一键化：`docker/danai/ship.sh user@云端IP` 完成构建→导出→传输→远端加载→起服务→验证。
 
-## 目录结构（待创建）
+## 文件清单
 
 ```
 docker/danai/
-├── PLAN.md                          # 本文档（已存在）
+├── PLAN.md                     # 本文档
+├── ship.sh                     # 一键发货脚本（本机执行）
 ├── build/
-│   ├── Dockerfile                   # 多阶段源码构建（待创建）
-│   └── docker-entrypoint.sh         # 自定义入口，去掉官方的 db:auth（待创建）
+│   ├── Dockerfile              # 多阶段源码构建
+│   ├── build.ignore            # podman build --ignorefile 专用排除表
+│   └── docker-entrypoint.sh    # 官方 entrypoint 改写（去 db:auth，加 DB 等待）
 └── deploy/
-    ├── docker-compose.yml           # 团队部署用 app + postgres（待创建）
-    ├── .env.example                 # 部署必填环境变量模板（待创建）
-    └── README.md                    # 构建/导出/加载/部署一站式说明（待创建）
+    ├── docker-compose.yml      # app + postgres:18
+    ├── .env.example            # 必填密钥模板
+    └── README.md               # 云端部署/升级/备份一站式说明
 ```
 
-## 关键调研结论（决定方案走向）
+不改动仓库任何既有文件；`docker/nocobase/cleanup-node-modules.sh` 原样 COPY 进镜像复用。
 
-调研时所有路径基于仓库根 `/home/dan/Workspace/nocobase/`。
+## 构建（build/Dockerfile）
 
-### 1. 构建命令
+命令（仓库根执行，ship.sh 已封装）：
 
-`yarn install` → `APP_ENV=production yarn build`（=`nocobase-v1 build`）。
-
-- 入口：`package.json` 第 27 行 `"build": "nocobase-v1 build"`。
-- 实现：`packages/core/cli-v1/src/commands/build.js` → `@nocobase/build`（`packages/core/build/src/build.ts` 的 `build()`）。
-- 原地构建整个 monorepo：各包 `lib/`（CJS）+ 声明文件、`packages/core/app/dist/client/`（前端 SPA v1+v2）。
-- 无需 lerna version / `release:force`（那些只为灌 registry）。
-
-### 2. Node 版本
-
-`.node-version`=22，统一用 `node:22-bookworm-slim`（与官方两个 Dockerfile 一致）。`engines.node` 是宽松下限 `>=18`，以 `.node-version` 为准。
-
-### 3. nginx 路径不匹配（已解决）
-
-- 官方 `create-nginx-conf`（`packages/core/cli-v1/src/commands/create-nginx-conf.js`）+ 模板 `packages/core/cli-v1/nocobase.conf.tpl` 把 `root`/`alias` 写死成 `{{cwd}}/node_modules/@nocobase/app/dist/client`。
-- 源码构建下 `generateAppDir()`（`packages/core/cli-v1/src/util.js` 第 284-301 行）解析 `@nocobase/app/src/index.ts`，`APP_PACKAGE_ROOT` 是 `packages/core/app`。
-- **但** yarn classic workspaces 会在 `node_modules/@nocobase/app` 建符号链接指向 `packages/core/app`（包名 `@nocobase/app` 命中 workspace glob `packages/*/*`，确定行为）。
-- 因此 nginx 模板路径经符号链接即等于 `packages/core/app/dist/client`，**官方入口脚本和 nginx 模板无需改动**。
-- entrypoint 里加一行 fallback 校验双保险（非符号链接则手动 `ln -s ../../packages/core/app`）。
-
-### 4. `db:auth` 会崩
-
-- 官方 `docker-entrypoint.sh` 第 49 行 `yarn nocobase db:auth`。
-- `db:auth` 只在新 `@nocobase/cli`（`nb`）注册，**未在 `nocobase-v1`（cli-v1）注册**（`packages/core/cli-v1/src/commands/index.js` 的命令列表确认无此项）。
-- Commander 遇未知命令报错，配合 `set -e` 会让容器退出。
-- **自定义 entrypoint 跳过 `db:auth`**，DB 初始化由 `start --quickstart`（`packages/core/cli-v1/src/commands/start.js` 第 58-60 行 `downloadPro()`，以及服务端 db install/sync 流程）兜底。
-
-### 5. 持久化卷
-
-挂 `/app/nocobase/storage`。
-
-- storage 解析见 `packages/core/cli-v1/src/util.js` 第 526-539 行 `resolveStorageRoot`（Docker 里 = `process.cwd()/storage` = `/app/nocobase/storage`）。
-- 内含：上传文件、生成的 nginx 配置、logs、插件存储、`.license/instance-id`、sqlite 数据库（如用 sqlite）、`storage/scripts/*.sh` 启动钩子。
-- `NOCOBASE_RUNNING_IN_DOCKER=true` 会把 gateway socket + PM2 home 重路由到 `~/.nocobase/`（util.js 第 547-571 行），避免落在 bind-mount 卷里。
-- PostgreSQL 数据挂 pg 容器自己的卷。
-
-### 6. 必填环境变量
-
-- `APP_KEY`、`ENCRYPTION_FIELD_KEY`（生成后不可改，否则加密字段无法解密）。
-- `DB_DIALECT=postgres`、`DB_HOST/PORT/DATABASE/USER/PASSWORD`。
-- 镜像内置：`NOCOBASE_RUNNING_IN_DOCKER=true`、`NB_SKIP_STARTUP_UPDATE=1`、`APP_ENV=production`。
-- `APP_PORT` 默认 13000（gateway 内部端口）；nginx 监听 80，compose 映射 `13000:80`。
-
-### 7. 运行时文件系统布局（镜像需提供）
-
-```
-/app/commit_hash.txt
-/app/docker-entrypoint.sh
-/app/nocobase/                      (WORKDIR)
-  package.json                      (entrypoint 校验)
-  node_modules/
-    @nocobase/app/dist/client/      (nginx doc root，需存在)
-  storage/                          (持久化卷，bind-mount)
-/etc/nginx/conf.d/nocobase.conf     (启动时软链到 storage/nocobase.conf)
+```bash
+podman build \
+  --ignorefile docker/danai/build/build.ignore \
+  -f docker/danai/build/Dockerfile \
+  --build-arg COMMIT_HASH=$(git rev-parse --short HEAD) \
+  -t danai-nocobase:$(git rev-parse --short HEAD) .
 ```
 
-### 8. 复用官方脚本
+**builder 阶段**（`node:22-bookworm-slim`）：
 
-`docker/nocobase/cleanup-node-modules.sh` 用于瘦身（剥离 `*.map`、`*.md`、`bower.json` 等，保留 `@nocobase/*` 内容和 `.d.ts`）。COPY 进镜像执行，不修改源文件。
+- Node 必须 v22：Node ≥23 移除 `SlowBuffer`，编译产物在 `buffer-equal-constant-time`
+  处崩溃（见 `.agents/skills/nocobase-prod-start`）；与 `.node-version`=22、官方镜像一致。
+- `COPY . .` 后一次 `yarn install --frozen-lockfile --network-timeout 600000` +
+  `APP_ENV=production yarn build`。**不做**"先拷 manifest 再 install"的分层缓存：yarn 1
+  workspace 的 lockfile 校验要求所有子包 package.json 在场。源码未变时 podman 层缓存全命中，
+  重跑只付上下文传输（~660MB）；源码一变则全量重跑（实测约 35–40 分钟）。
+- `yarn.lock` 的 resolved 大多指向 `registry.npmmirror.com`，构建机需可达（公网镜像，免登录）。
 
-### 9. `.dockerignore`（仓库根）
+**workspace 遮蔽清理**（构建成败关键）：`plugin-workflow-approval` 等 pro 插件的
+devDependencies 写 `"2.x"`，而 workspace 版本 `2.3.0-beta.8` 是预发布版不满足该 semver
+范围，全新 install 时 yarn 会从 npmmirror 拉 npm 稳定版 `2.2.7` 测试链，把
+`@nocobase/actions@2.2.7` 等真实拷贝嵌套进插件目录，遮蔽 workspace 包，造成 `Database`
+类型双身份，声明构建必挂。Dockerfile 在 install 后用 find 删除 `packages/` 下所有
+`*/node_modules/@nocobase/*` 的**非符号链接**拷贝（符号链接指向 workspace，保留）。
+验证构建中实际清理了 16 个。
 
-已排除 `storage/app-dev`、`**/.umi`、`**/.umi-production`、`packages/*/*/{lib,esm,es,dist,node_modules}`、`.vscode`、`.idea`、`*.sqlite`、`/uploads`。因此 `COPY . .` 不会把开发产物带进构建，但仍需在容器内 `yarn install` 重建 node_modules。
+**runtime 阶段**（`node:22-bookworm-slim`）：
 
-## 各文件内容要点（待创建）
+- nginx `1.30.1-1~bookworm`（nginx.org 官方源，安装段照搬官方 Dockerfile，本机网络可达）
+  + `postgresql-client`（bookworm 自带，供 entrypoint 的 pg_isready 等待循环）。
+- `COPY --from=builder /app /app/nocobase` → 跑官方 cleanup-node-modules.sh 瘦身（剥离
+  `*.map`、非 `@nocobase` 的 md）→ `rm -f .env` → `mkdir storage/uploads` +
+  `node_modules/@nocobase/app/dist/client` 并 touch index.html（nginx docroot 安全网，
+  防镜像传输丢符号链接时 404）→ 写 `/app/commit_hash.txt`。
+- 固化环境变量：`NOCOBASE_RUNNING_IN_DOCKER=true`、`NB_SKIP_STARTUP_UPDATE=1`、
+  `APP_ENV=production`、`DISABLE_PKG_DOWNLOAD=true`（静默跳过 pro 包下载）。
+- `HEALTHCHECK`：node fetch `/api/app:getInfo`（start-period 300s，首装建库慢）。
+- `EXPOSE 80`；nginx 服务 SPA 并反代 `/api` 到 `APP_PORT`（默认 13000）；compose 发布
+  `13000:80`。镜像实测 **3.82 GB**。
 
-### `docker/danai/build/Dockerfile`
+**build.ignore**（不是根 `.dockerignore`）：根 `.dockerignore` 不排根 `node_modules`
+(2.9G)、`.git`(409M)、`storage`(277M)、`docs`(89M)，上下文会到 ~4GB。排除上述 +
+`benchmark`、`examples`、`.agents`、`.zcode`、`.claude`、`docker/danai/deploy`、`*.log`。
+**只排除真实 `.env`**（唯一含密钥）：`*.env.example` 系列必须留在上下文——cli-v1 的
+`p-test.js:25` 在模块加载期 `readFileSync('.env.e2e.example')`，缺文件 install 直接崩。
+`docker/danai/build` 自身不能排除（runtime 阶段要从上下文 COPY entrypoint）。
 
-多阶段：
+## entrypoint（build/docker-entrypoint.sh）
 
-**builder**（`node:22-bookworm-slim`）：
-- 先 `COPY package.json yarn.lock lerna.json ./` 再 `yarn install --frozen-lockfile`（分层缓存命中）
-- `COPY . .`（依赖根 `.dockerignore` 排除开发产物）
-- `APP_ENV=production yarn build`（构建所有包 + 前端到 `packages/core/app/dist/client`）
+官方脚本的差异：去掉本 fork cli-v1 未注册、`set -e` 下必崩的 `yarn nocobase db:auth`；
+去掉不使用的 `NOCOBASE_EXTRACT_CLIENT_ASSETS`/CDN 分支。流程：
 
-**runtime**（`node:22-bookworm-slim`）：
-- 装 nginx 1.30.1 bookworm + postgresql-client（照搬官方 `docker/nocobase/Dockerfile` 第 29-43 行的 nginx 安装段，删 `/etc/nginx/conf.d/default.conf`）
-- `COPY --from=builder /app /app/nocobase`
-- COPY 官方 `docker/nocobase/cleanup-node-modules.sh` 进来执行瘦身（不修改源文件）
-- `mkdir -p storage/uploads node_modules/@nocobase/app/dist/client` + `touch .../index.html`（复刻官方 `Dockerfile-full` 第 199-201 行安全网）
-- `RUN rm -f /app/nocobase/.env`（避免开发用 .env 打进镜像）
-- 写 commit hash（`ARG COMMIT_HASH`）
-- COPY 本目录的 `docker-entrypoint.sh` + 设环境变量（`NOCOBASE_RUNNING_IN_DOCKER=true`、`NB_SKIP_STARTUP_UPDATE=1`、`APP_ENV=production`）+ `WORKDIR /app/nocobase` + `CMD ["/app/docker-entrypoint.sh"]`
+1. 打印 `/app/commit_hash.txt`、校验 package.json；
+2. `node_modules/@nocobase/app` 非符号链接则手动 `ln -s`（docroot 双保险）；
+3. `yarn nocobase postinstall`（patch-package + 插件符号链接）；
+4. **等待 DB**（替代 db:auth）：postgres 方言 `pg_isready` 循环、其余 node TCP 探测，
+   ≤120s 超时退出。app 先于 DB 启动会陷入最长 ~4 分钟的指数退避重连，必须在此把关；
+5. `generate-instance-id` → `create-nginx-conf` → 软链 `/etc/nginx/conf.d/` → 启动 nginx；
+6. 跑 `storage/scripts/*.sh` 用户启动钩子；
+7. `exec yarn start --quickstart`（空库自动建表+种子，已有库自动做版本升级同步）。
 
-注：构建上下文是**仓库根**（`docker build -f docker/danai/build/Dockerfile .`），这样才能 `COPY` 整个 monorepo 源码 + 官方 cleanup 脚本。
+## 部署（deploy/）
 
-### `docker/danai/build/docker-entrypoint.sh`
+- **compose**：`app`（`danai-nocobase:${TAG:-latest}`，`13000:80`，
+  `./storage:/app/nocobase/storage:Z`，`env_file .env`，depends_on postgres
+  service_healthy，restart unless-stopped，init）+ `postgres:18`（`wal_level=logical`，
+  数据落 `./storage/db/postgres`，PG18 嵌套布局在 `18/docker/` 子目录，pg_isready
+  healthcheck）。用 `podman compose`（docker-compose provider，需 podman.socket）。
+  entrypoint 自带等待循环，健康门控只是加速项而非依赖。
+- **.env.example**：必填 `APP_KEY`、`ENCRYPTION_FIELD_KEY`（`openssl rand -base64 32`
+  生成，**生成后永不可改**）、`DB_PASSWORD`；默认 DB 指向 compose 内 postgres；可选
+  `INIT_ROOT_*`、`APP_BRAND_*`。
+- **README.md**：云端前置（podman ≥4.x、磁盘 ≥10G、放行 13000）、首启/升级/回滚/备份
+  恢复、常见问题。升级 = load 新 tag 镜像 → `TAG=<new> podman compose up -d`，schema
+  自动升级，storage 卷持久；回滚同理换旧 tag。
 
-基于官方 `docker/nocobase/docker-entrypoint.sh` 改写，**去掉 `db:auth`**，流程：
+## ship.sh 一键流程（本机执行）
 
-1. 打印 commit hash（`cat /app/commit_hash.txt`）
-2. 校验 `package.json` 存在
-3. **符号链接双保险**：若 `node_modules/@nocobase/app` 非符号链接，手动 `ln -s ../../packages/core/app`
-4. `yarn nocobase postinstall`（patch-package + 插件符号链接，快速无编译）
-5. `yarn nocobase generate-instance-id`
-6. `yarn nocobase create-nginx-conf` → 生成 `storage/nocobase.conf`
-7. 启动 nginx + 软链 `/etc/nginx/conf.d/nocobase.conf`
-8. 跑 `storage/scripts/*.sh`（保留官方启动钩子）
-9. `yarn start --quickstart`（前台主进程）
+`docker/danai/ship.sh user@host [-p 端口] [--remote-dir 目录] [--build-only]`
 
-### `docker/danai/deploy/docker-compose.yml`
+1. `TAG=$(git rev-parse --short HEAD)`，podman build（双 tag：短哈希 + latest）；
+2. 确保本地有 `docker.io/library/postgres:18`（走 CN 镜像拉取）；
+3. `podman save` 单 tar（app + postgres:18，云端免联网拉取）；
+4. rsync tar + `deploy/` 到远端 `~/danai/`；
+5. 远端 `podman load` → 首次自动 `cp .env.example .env` 并 openssl 生成两把密钥 +
+   DB_PASSWORD → `TAG=<tag> podman compose up -d` → 轮询 curl 验证。
 
-基于官方 `docker/app-postgres/docker-compose.yml` 改写，适配源码构建：
+**标签错挂防护**（本地 save 前后各一次）：podman 6.1.x 多镜像 load 实测会把 repo tag
+错挂（postgres:16 曾挂到 app 镜像上，真身变悬空镜像），两镜像 entrypoint 同名无法区分，
+故用 `podman run --rm $PG_IMAGE psql --version` 探测，失败即报错并给出
+`rmi && pull` 修复命令。
 
-- `app`：`image: team-nocobase:latest`（离线分发固定名）、`ports: 13000:80`、`volumes: ./storage:/app/nocobase/storage`、`env_file: ./.env`、`depends_on: [postgres]`、`restart: unless-stopped`、`init: true`
-- `postgres`：`image: postgres:16`（官方示例的 10 偏老，升 16）、`command: postgres -c wal_level=logical`、`./storage/db/postgres:/var/lib/postgresql/data`、账号密码环境变量
+## 验证记录（2026-09-10 实测）
 
-### `docker/danai/deploy/.env.example`
+- 镜像构建成功（3.82 GB；构建上下文 ~660MB；4 轮迭代后通过）。
+- 本地 compose 冒烟：entrypoint 全流程（DB 等待 → instance-id → nginx → PM2）；
+  空库自动建 **106 张表**；`/` 返回 SPA（HTTP 200）、`/api/app:getInfo` 返回
+  `2.3.0-beta.8`；down → up 重启后用户数据保留、应用恢复。
+- save/load 回环：3.6 GB tar 删镜像后 load 恢复成功。
 
-部署必填项模板：
+## 实施过程中修复的仓库既有问题
 
-```
-APP_KEY=                    # 必填，随机 32 位（openssl rand -base64 32）
-ENCRYPTION_FIELD_KEY=       # 必填，随机串，生成后不可改！
-DB_DIALECT=postgres
-DB_HOST=postgres
-DB_PORT=5432
-DB_DATABASE=nocobase
-DB_USER=nocobase
-DB_PASSWORD=                # 必填，与 postgres 服务一致
-```
-
-### `docker/danai/deploy/README.md`
-
-一站式说明：
-
-1. **构建**（仓库根执行）：`docker build -t team-nocobase:latest -f docker/danai/build/Dockerfile .`
-2. **导出**：`docker save team-nocobase:latest -o team-nocobase.tar`
-3. **加载**（同事）：`docker load -i team-nocobase.tar`
-4. **改 `.env`**：`cp docker/danai/deploy/.env.example docker/danai/deploy/.env` 并填值
-5. **启动**：`docker compose -f docker/danai/deploy/docker-compose.yml up -d`
-6. **访问**：`http://<host>:13000`
-
-## 不改动任何现有文件
-
-所有新增文件都在 `docker/danai/` 的两个子目录下。现有 `Dockerfile`、根 `docker-compose.yml`、`docker/nocobase/*`、`docker/app-*/` 全部保持原样。复用官方 `cleanup-node-modules.sh`（COPY 进镜像，不修改）。
-
-## 风险与缓解
-
-| 风险 | 缓解 |
+| 问题 | 修复 |
 |---|---|
-| nginx 符号链接假设（依赖 yarn workspaces 行为） | entrypoint 里 fallback 校验：非符号链接则手动 `ln -s` |
-| `db:auth` 缺失导致容器退出 | 自定义 entrypoint 跳过，靠 `start --quickstart` 兜底 |
-| 构建耗时长（`yarn build` 全量首次约 10-20 分钟） | README 提示；分层缓存提升后续构建 |
-| `.env` 泄露（开发用 .env 被 COPY 进 builder） | runtime 阶段 `rm -f .env` |
-| 镜像体积（约 1.5-2.5GB） | cleanup 脚本瘦身；README 提及可选的 production-only 重装进一步瘦身 |
+| `plugin-ai` vditor 编辑器 `lang` 为宽泛 `string`，严格声明构建报 TS2322 | `as const` 字面量元组 + 类型守卫收窄为 `keyof II18n` 字面量联合 |
+| `plugin-workflow-webhook` 从 `@nocobase/flow-engine` 导入不存在的 `VariableOption` | 改从 `@nocobase/plugin-workflow/client-v2`（实际导出方）导入 |
+| pro 插件 devDeps `"2.x"` 拉入 npm 2.2.7 拷贝遮蔽 workspace 包（见上文清理步骤） | Dockerfile install 后清理 + 本地删除遗留嵌套 node_modules |
 
-## 验证方式（实施后）
+这三类问题 dev 模式（tsx）全部静默放过，只有 `yarn build`（tsc 声明）会暴露——本地
+全量 `yarn build` 通过（815s，0 声明失败）是镜像可构建的前置条件。
 
-1. `docker build -t team-nocobase:latest -f docker/danai/build/Dockerfile .` 构建成功
-2. `docker compose -f docker/danai/deploy/docker-compose.yml up` 容器不退出（entrypoint 跑通）
-3. `curl http://localhost:13000` 返回前端 SPA（200 + index.html）
-4. 浏览器访问 `http://localhost:13000` 出现初始化向导，DB 连接成功
+## 注意事项
 
-注：实际构建/运行验证需在目标机器执行（构建耗时长）。首次构建若遇符号链接/路径问题，据此微调 Dockerfile / entrypoint。
+- **镜像 tag 与源码对应**：tag = 构建时 HEAD 短哈希。工作区有未提交改动时构建出的镜像
+  与 tag 不严格对应——发货前先提交（`ship.sh` 不会替你检查）。
+- 只改 `.env`/compose 配置不需要重建镜像；源码变了必须重建（~40 分钟，无更快路径）。
+- 本地开发库数据在匿名卷（容器 `nocobase-postgres`），与镜像无关；重建容器前先备份数据卷。
