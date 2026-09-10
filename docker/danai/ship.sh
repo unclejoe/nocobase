@@ -52,8 +52,19 @@ if [ "$BUILD_ONLY" -eq 1 ]; then
   exit 0
 fi
 
+verify_postgres_image() {
+  # podman 6.1.x multi-image load has been observed to mis-assign repo tags (postgres:16 ending
+  # up on the app image). Both images share the entrypoint name, so probe a postgres-only binary.
+  if ! podman run --rm docker.io/library/postgres:16 psql --version >/dev/null 2>&1; then
+    echo "postgres:16 tag does not point at a real postgres image; fix before shipping:" >&2
+    echo "  podman rmi docker.io/library/postgres:16 && podman pull docker.io/library/postgres:16" >&2
+    return 1
+  fi
+}
+
 echo "==> [2/5] ensuring ${PG_IMAGE} exists locally (shipped inside the tar)..."
 podman image exists "$PG_IMAGE" || podman pull "$PG_IMAGE"
+verify_postgres_image
 
 echo "==> [3/5] saving ${IMAGE_NAME}:${TAG} + postgres:16 to ${TAR_FILE}..."
 podman save -o "$TAR_FILE" "${IMAGE_NAME}:${TAG}" "$PG_IMAGE"
@@ -68,6 +79,12 @@ rsync -azP -e "ssh -p ${SSH_PORT}" \
 
 echo "==> [5/5] loading image and starting compose on ${REMOTE}..."
 ssh_remote "mkdir -p ${REMOTE_DIR} && podman load -i ${REMOTE_DIR}/$(basename "$TAR_FILE")"
+# same tag-mixup guard on the remote side after load
+if ! ssh_remote "podman run --rm docker.io/library/postgres:16 psql --version" >/dev/null 2>&1; then
+  echo "remote postgres:16 tag is wrong after load; fix with:" >&2
+  echo "  ssh -p ${SSH_PORT} ${REMOTE} 'podman rmi docker.io/library/postgres:16 && podman pull docker.io/library/postgres:16'" >&2
+  exit 1
+fi
 # 首次部署：生成 .env 并自动填入两把密钥；DB_PASSWORD 云端自行修改
 ssh_remote "cd ${REMOTE_DIR} && if [ ! -f .env ]; then \
   cp .env.example .env && \
