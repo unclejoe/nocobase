@@ -22,7 +22,9 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
       POSTGRES_DB: ${DB_DATABASE:-nocobase}
     volumes:
-      - ./storage/db/postgres:/var/lib/postgresql/data:Z
+      # postgres:18 requires the mount at /var/lib/postgresql (not .../data); PGDATA lands in
+      # the versioned subdir 18/docker inside it, i.e. ./storage/db/postgres/18/docker on host.
+      - ./storage/db/postgres:/var/lib/postgresql:Z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nocobase} -d ${DB_DATABASE:-nocobase}"]
       interval: 5s
