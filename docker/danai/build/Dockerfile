@@ -55,27 +55,36 @@ ENV NOCOBASE_RUNNING_IN_DOCKER=true \
     DISABLE_PKG_DOWNLOAD=true
 
 # nginx (install block taken from the official docker/nocobase/Dockerfile) serves the SPA on :80
-# and proxies /api to the app on APP_PORT (default 13000). postgresql-client provides pg_isready
-# for the entrypoint's wait-for-db loop.
+# and proxies /api to the app on APP_PORT (default 13000). postgresql-client comes from PGDG and
+# MUST match the deployed postgres major (18): the backups plugin shells out to pg_dump/pg_restore
+# in PATH, and a 15.x client hard-fails restoring an 18.x dump mid-flow (leaving an emptied DB).
 RUN set -eux; \
   if [ "${INSTALL_NGINX}" = "1" ]; then \
     apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates gnupg wget postgresql-client; \
+    apt-get install -y --no-install-recommends ca-certificates gnupg wget; \
     wget -qO /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key; \
     gpg --batch --yes --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg /tmp/nginx_signing.key; \
     printf '%s\n' \
       'deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] https://nginx.org/packages/debian bookworm nginx' \
       > /etc/apt/sources.list.d/nginx.list; \
+    wget -qO /tmp/pgdg_signing.key https://www.postgresql.org/media/keys/ACCC4CF8.asc; \
+    gpg --batch --yes --dearmor -o /usr/share/keyrings/pgdg-archive-keyring.gpg /tmp/pgdg_signing.key; \
+    printf '%s\n' \
+      'deb [signed-by=/usr/share/keyrings/pgdg-archive-keyring.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' \
+      > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
-    apt-get install -y --no-install-recommends "nginx=${NGINX_VERSION}" libaio1; \
-    nginx -v; \
+    apt-get install -y --no-install-recommends "nginx=${NGINX_VERSION}" libaio1 postgresql-client-18; \
+    pg_dump --version; \
     apt-get purge -y --auto-remove wget gnupg; \
     rm -rf /etc/nginx/conf.d/default.conf; \
   fi; \
   rm -rf \
     /etc/apt/sources.list.d/nginx.list \
+    /etc/apt/sources.list.d/pgdg.list \
     /tmp/nginx_signing.key \
+    /tmp/pgdg_signing.key \
     /usr/share/keyrings/nginx-archive-keyring.gpg \
+    /usr/share/keyrings/pgdg-archive-keyring.gpg \
     /var/lib/apt/lists/*
 
 WORKDIR /app/nocobase
