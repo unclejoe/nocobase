@@ -119,6 +119,9 @@ ssh_remote "cd ${REMOTE_DIR} && rm -f $(basename "$TAR_APP") $(basename "$TAR_PG
 echo "==> waiting for app to come up on ${REMOTE} (first boot installs the database, 1-2 min)..."
 for i in $(seq 1 40); do
   if ssh_remote "curl -sS -o /dev/null -m 5 http://127.0.0.1:13000/api/app:getInfo" 2>/dev/null; then
+    # the remote side already deleted its copies after load; drop the local export tars too
+    # (7.6GB per ship otherwise). Kept on failure so a retry rsync can resume.
+    rm -f "$TAR_APP" "$TAR_PG"
     echo "==> DEPLOYED: http://${REMOTE#*@}:13000 (image ${IMAGE_NAME}:${TAG})"
     exit 0
   fi
