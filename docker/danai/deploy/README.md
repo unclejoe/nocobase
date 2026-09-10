@@ -8,12 +8,12 @@
 - Podman ≥ 4.x（`podman compose` 子命令可用；它会自动调用 docker-compose 或 podman-compose 作为 provider）
 - 磁盘 ≥ 10GB（镜像约 3–4GB + 数据增长空间）
 - 放行入站端口 13000（或在反代/安全组后自定义映射端口）
-- 已收到两个文件：`danai-nocobase-<tag>.tar`（含 app 镜像 + postgres:16）与 `deploy/` 目录
+- 已收到两个文件：`danai-nocobase-<tag>.tar`（含 app 镜像 + postgres:18）与 `deploy/` 目录
 
 ## 首次部署
 
 ```bash
-# 1. 导入镜像（tar 内含 danai-nocobase:<tag> 和 postgres:16，云端无需联网拉取）
+# 1. 导入镜像（tar 内含 danai-nocobase:<tag> 和 postgres:18，云端无需联网拉取）
 podman load -i danai-nocobase-<tag>.tar
 
 # 2. 准备部署目录
@@ -86,7 +86,7 @@ TAG=<tag> podman compose up -d
 ├── .env                  # 密钥与数据库配置（勿泄露、勿改密钥）
 ├── docker-compose.yml
 └── storage/              # 全部持久化数据
-    ├── db/postgresql/    #   PostgreSQL 数据（升级保留）
+    ├── db/postgres/       #   PostgreSQL 18 数据（PG18 嵌套布局在 18/docker/ 子目录，升级保留）
     └── uploads/          #   上传文件（升级保留）
 ```
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 一键：构建镜像 → 导出 tar（含 postgres:16）→ rsync 到云端 → 远端 load → compose up。
+# 一键：构建镜像 → 导出 tar（含 postgres:18）→ rsync 到云端 → 远端 load → compose up。
 #
 # 用法（仓库根执行）:
 #   docker/danai/ship.sh user@cloud-host
@@ -12,7 +12,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 IMAGE_NAME="danai-nocobase"
-PG_IMAGE="docker.io/library/postgres:16"
+PG_IMAGE="docker.io/library/postgres:18"
 REMOTE_DIR="~/danai"
 REMOTE=""
 SSH_PORT=22
@@ -53,11 +53,12 @@ if [ "$BUILD_ONLY" -eq 1 ]; then
 fi
 
 verify_postgres_image() {
-  # podman 6.1.x multi-image load has been observed to mis-assign repo tags (postgres:16 ending
-  # up on the app image). Both images share the entrypoint name, so probe a postgres-only binary.
-  if ! podman run --rm docker.io/library/postgres:16 psql --version >/dev/null 2>&1; then
-    echo "postgres:16 tag does not point at a real postgres image; fix before shipping:" >&2
-    echo "  podman rmi docker.io/library/postgres:16 && podman pull docker.io/library/postgres:16" >&2
+  # podman 6.1.x multi-image load has been observed to mis-assign repo tags (the postgres tag
+  # ending up on the app image). Both images share the entrypoint name, so probe a postgres-only
+  # binary. Keep the major aligned with the local dev database (PG18) so dumps restore either way.
+  if ! podman run --rm "$PG_IMAGE" psql --version >/dev/null 2>&1; then
+    echo "${PG_IMAGE} does not point at a real postgres image; fix before shipping:" >&2
+    echo "  podman rmi ${PG_IMAGE} && podman pull ${PG_IMAGE}" >&2
     return 1
   fi
 }
@@ -66,7 +67,7 @@ echo "==> [2/5] ensuring ${PG_IMAGE} exists locally (shipped inside the tar)..."
 podman image exists "$PG_IMAGE" || podman pull "$PG_IMAGE"
 verify_postgres_image
 
-echo "==> [3/5] saving ${IMAGE_NAME}:${TAG} + postgres:16 to ${TAR_FILE}..."
+echo "==> [3/5] saving ${IMAGE_NAME}:${TAG} + ${PG_IMAGE} to ${TAR_FILE}..."
 podman save -o "$TAR_FILE" "${IMAGE_NAME}:${TAG}" "$PG_IMAGE"
 
 echo "==> [4/5] rsyncing image + deploy/ to ${REMOTE}:${REMOTE_DIR}..."
@@ -80,9 +81,9 @@ rsync -azP -e "ssh -p ${SSH_PORT}" \
 echo "==> [5/5] loading image and starting compose on ${REMOTE}..."
 ssh_remote "mkdir -p ${REMOTE_DIR} && podman load -i ${REMOTE_DIR}/$(basename "$TAR_FILE")"
 # same tag-mixup guard on the remote side after load
-if ! ssh_remote "podman run --rm docker.io/library/postgres:16 psql --version" >/dev/null 2>&1; then
-  echo "remote postgres:16 tag is wrong after load; fix with:" >&2
-  echo "  ssh -p ${SSH_PORT} ${REMOTE} 'podman rmi docker.io/library/postgres:16 && podman pull docker.io/library/postgres:16'" >&2
+if ! ssh_remote "podman run --rm ${PG_IMAGE} psql --version" >/dev/null 2>&1; then
+  echo "remote ${PG_IMAGE} tag is wrong after load; fix with:" >&2
+  echo "  ssh -p ${SSH_PORT} ${REMOTE} 'podman rmi ${PG_IMAGE} && podman pull ${PG_IMAGE}'" >&2
   exit 1
 fi
 # 首次部署：生成 .env 并自动填入两把密钥；DB_PASSWORD 云端自行修改
