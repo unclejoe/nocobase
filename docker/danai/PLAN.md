@@ -9,25 +9,29 @@
 
 - 从**本仓库源码**构建生产镜像（官方 Dockerfile 从 npm 发布包构建，不含本 fork 的自定义
   插件 plugin-ai / plugin-workflow-approval / 品牌定制，故不可用）。
-- **离线 tar 分发**到云端：`podman save` → rsync → 远端 `podman load`，不依赖任何镜像仓库
-  （本机网络 Docker Hub 不可达）。云端数据库为 **compose 内置 PostgreSQL 18**，与本地
-  dev/prod 数据库（`nocobase-postgres-saved`，PG 18.6）同版本，pg_dump 双向可恢复。
-- 一键化：`docker/danai/ship.sh user@云端IP` 完成构建→导出→传输→远端加载→起服务→验证。
+- **主推路径（2026-09-10 变更）：云端构建**——`ship-source.sh` 只 rsync 纯项目源码
+  （git 跟踪文件，实测 **190MB**，26,730 个文件）到云端，用同一个 Dockerfile 在云端
+  `podman build`，再 compose up。3.82GB 镜像不出本机，网络传输量约降 90%。
+- **备选路径：离线镜像**——`ship.sh` 本机构建 + `podman save` tar 分发（适合云端无法
+  访问 npmmirror/debian/nginx.org 源，或要多机批量铺镜像的场景）。
+- 云端数据库为 **compose 内置 PostgreSQL 18**，与本地 dev/prod 数据库
+  （`nocobase-postgres-saved`，PG 18.6）同版本，pg_dump 双向可恢复。
 
 ## 文件清单
 
 ```
 docker/danai/
 ├── PLAN.md                     # 本文档
-├── ship.sh                     # 一键发货脚本（本机执行）
+├── ship-source.sh              # 一键发货（推荐）：rsync 纯源码 → 云端构建 → compose up
+├── ship.sh                     # 一键发货（备选）：本机构建 → 离线 tar → 远端 load → up
 ├── build/
-│   ├── Dockerfile              # 多阶段源码构建
+│   ├── Dockerfile              # 多阶段源码构建（两条路径共用）
 │   ├── build.ignore            # podman build --ignorefile 专用排除表
 │   └── docker-entrypoint.sh    # 官方 entrypoint 改写（去 db:auth，加 DB 等待）
 └── deploy/
     ├── docker-compose.yml      # app + postgres:18
     ├── .env.example            # 必填密钥模板
-    └── README.md               # 云端部署/升级/备份一站式说明
+    └── README.md               # 云端部署/升级/备份一站式说明（含两条路径对比）
 ```
 
 不改动仓库任何既有文件；`docker/nocobase/cleanup-node-modules.sh` 原样 COPY 进镜像复用。
@@ -78,10 +82,13 @@ devDependencies 写 `"2.x"`，而 workspace 版本 `2.3.0-beta.8` 是预发布�
 
 **build.ignore**（不是根 `.dockerignore`）：根 `.dockerignore` 不排根 `node_modules`
 (2.9G)、`.git`(409M)、`storage`(277M)、`docs`(89M)，上下文会到 ~4GB。排除上述 +
+`packages/*/*/{lib,esm,es,dist}`（包根构建产物，本地 `yarn build` 会残留 ~600MB，
+容器内构建本就会 `clean --dist` 重建；已验证 git 不跟踪该层级的任何文件）+
 `benchmark`、`examples`、`.agents`、`.zcode`、`.claude`、`docker/danai/deploy`、`*.log`。
 **只排除真实 `.env`**（唯一含密钥）：`*.env.example` 系列必须留在上下文——cli-v1 的
 `p-test.js:25` 在模块加载期 `readFileSync('.env.e2e.example')`，缺文件 install 直接崩。
 `docker/danai/build` 自身不能排除（runtime 阶段要从上下文 COPY entrypoint）。
+应用排除后构建上下文 ≈ 纯源码 190MB（= git 跟踪文件去掉 docs 等）。
 
 ## entrypoint（build/docker-entrypoint.sh）
 
@@ -112,7 +119,23 @@ devDependencies 写 `"2.x"`，而 workspace 版本 `2.3.0-beta.8` 是预发布�
   恢复、常见问题。升级 = load 新 tag 镜像 → `TAG=<new> podman compose up -d`，schema
   自动升级，storage 卷持久；回滚同理换旧 tag。
 
-## ship.sh 一键流程（本机执行）
+## ship-source.sh 云端构建流程（主推，本机执行）
+
+`docker/danai/ship-source.sh user@host [-p 端口] [--remote-dir 目录]`
+
+1. **工作区干净检查**：rsync 按 `git ls-files` 清单传工作区当前内容、tag 取自 HEAD，
+   二者不一致则镜像无法追溯——有未提交改动即拒绝（`.zcode/` 会话产物放行）；
+2. rsync 纯源码（git 跟踪文件，远端 `src/` 目录每轮整建，防残留）；
+3. 云端缺 `node:22-bookworm-slim` 时先拉取；docker.io 不可达则从本机
+   `podman save | gzip | ssh load` 流式送基础镜像（233MB，一次性）；
+4. 同步 `deploy/` 到远端 + 首次自动生成 `.env` 三把随机密钥；
+5. 远端 `podman build`（与本地完全相同的命令/Dockerfile，35–40 分钟）；
+6. `TAG=<hash> podman compose up -d` → 轮询 curl 验证。
+
+云端前提：podman ≥4.7（`--ignorefile`）、`podman compose`、可达 npmmirror /
+deb.debian.org / nginx.org。
+
+## ship.sh 离线镜像流程（备选，本机执行）
 
 `docker/danai/ship.sh user@host [-p 端口] [--remote-dir 目录] [--build-only]`
 
