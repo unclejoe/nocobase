@@ -176,3 +176,26 @@ deb.debian.org / nginx.org。
   与 tag 不严格对应——发货前先提交（`ship.sh` 不会替你检查）。
 - 只改 `.env`/compose 配置不需要重建镜像；源码变了必须重建（~40 分钟，无更快路径）。
 - 本地开发库数据在匿名卷（容器 `nocobase-postgres`），与镜像无关；重建容器前先备份数据卷。
+
+## 待办：镜像瘦身（下次版本构建时实施，2026-09-10 记录）
+
+对已部署镜像（`663eeb33d2`，3.82G）的内容审计发现约 **0.9–1.1GB 冗余**，暂不改动，
+下次新版本构建+云端部署时一并处理：
+
+| 冗余项 | 大小 | 内容 |
+|---|---|---|
+| node_modules 纯开发工具链 | ~0.72G | @umijs 143M、@rspack 112M、@swc 99M、@commitlint 67M、@babel 47M、typescript 39M、@faker-js 30M、eslint 系 ~28M、@rsbuild 26M、@svgr 20M、@vercel/ncc 19M、@types 16M、vite 13M、babel-* 13M、prettier 8.2M、playwright/vitest/@testing-library ~12M、webpack/esbuild/stylelint/lerna/tsx 系 22M |
+| musl 原生绑定（glibc 镜像废料） | ~0.15G | @rspack、@swc、@napi-rs/canvas、license-kit 的 `*-linux-musl` 变体 |
+| packages 的 src + __tests__ | ~0.10G | 运行只读 lib/es/dist（435M），src 94M + 测试 3.8M 可删 |
+| 嵌套开发依赖 / 测试插件 | ~50M+ | mock-collections 30M（test-only 插件）、devtools/build/test 包内容 |
+| 杂项 | ~12M | CHANGELOG 1.3M、各包 *.md 9.5M、.env.test |
+
+生产依赖 ~1.9G 属真实所需（china-division 182M 省市区数据、@antv 130M 图表、
+antd/echarts/vditor/langchain 等），**不要动**。
+
+**实施方案**：Dockerfile 在 `yarn build` 完成后、COPY 到 runtime 前定向 `rm` 剔除
+（用上面的精确包名单，不动依赖解析/lockfile）；预计镜像 3.8G → 约 2.8G，每次发货
+传输量与云端磁盘占用相应下降。musl 绑定可在 builder 里排除对应 optional dep 目录。
+
+**实施要求**：重建后必须完整冒烟（compose 空库自动安装 + API/SPA 200 + 重启持久化）
+再发货云端——剔除名单若误伤运行库会在这里暴露。
