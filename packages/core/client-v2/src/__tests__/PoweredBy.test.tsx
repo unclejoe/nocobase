@@ -51,8 +51,8 @@ describe('PoweredBy', () => {
   it('should render the default brand when custom-brand is not installed', async () => {
     const { container } = await renderPoweredBy();
 
-    expect(screen.getByRole('link', { name: 'NocoBase' })).toHaveAttribute('href', 'https://www.nocobase.com');
-    expect(container).toHaveTextContent('Powered by NocoBase');
+    expect(screen.getByRole('link', { name: 'Dan.AI' })).toHaveAttribute('href', 'https://dan.ai');
+    expect(container).toHaveTextContent('Powered by Dan.AI');
     // The `.nb-brand` className is reserved for the custom-brand HTML branch
     // so downstream stylesheets can selectively target customised content
     // without leaking onto the default footer.
@@ -62,7 +62,7 @@ describe('PoweredBy', () => {
   it('should render the env-driven brand (APP_BRAND_*) when app:getInfo provides it', async () => {
     // Env-driven brand is surfaced as `appInfo.brand` via app:getInfo (set by
     // APP_BRAND_TITLE / APP_BRAND_HOMEPAGE_URL on the server). It must win over
-    // the hardcoded "Powered by NocoBase" default. See BRAND_INVENTORY.md §1.
+    // the hardcoded "Powered by Dan.AI" fork default. See BRAND_INVENTORY.md §1.
     // `appInfo.brand` resolves asynchronously, so the assertions wait for the
     // re-render rather than reading the first (default) paint.
     const { container } = await renderPoweredBy([], {
@@ -108,15 +108,15 @@ describe('PoweredBy', () => {
   });
 
   it('should fall back to the default homepage URL when only the env brand title is set', async () => {
-    // If APP_BRAND_HOMEPAGE_URL is unset, the link still points at the locale
-    // nocobase.com default — only the visible title is rebranded.
+    // If APP_BRAND_HOMEPAGE_URL is unset, the link still points at the fork
+    // default homepage — only the visible title is rebranded.
     const { container } = await renderPoweredBy([], {
       version: '1.2.3',
       brand: { title: 'TitleOnly' },
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'TitleOnly' })).toHaveAttribute('href', 'https://www.nocobase.com');
+      expect(screen.getByRole('link', { name: 'TitleOnly' })).toHaveAttribute('href', 'https://dan.ai');
     });
     expect(container).toHaveTextContent('Powered by TitleOnly');
   });

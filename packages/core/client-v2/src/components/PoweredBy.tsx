@@ -17,9 +17,11 @@ import { useCurrentAppInfo } from '../hooks/useCurrentAppInfo';
 import { usePlugin } from '../hooks/usePlugin';
 import { getAppVersionHTML } from '../utils/appVersionHTML';
 
+// Fork default brand (see BRAND_INVENTORY.md §1): matches the server-side default `brand`
+// reported by app:getInfo, so no tier can leak "NocoBase" on entry pages like signin.
 const homePageUrls: Record<string, string> = {
-  'en-US': 'https://www.nocobase.com',
-  'zh-CN': 'https://www.nocobase.com/cn/',
+  'en-US': 'https://dan.ai',
+  'zh-CN': 'https://dan.ai',
 };
 
 /**
@@ -28,7 +30,7 @@ const homePageUrls: Record<string, string> = {
  * Resolution order (see BRAND_INVENTORY.md §1): env-driven `appInfo.brand`
  * (set via `APP_BRAND_*` env vars, surfaced through `app:getInfo`) wins;
  * otherwise the `@nocobase/plugin-custom-brand` plugin's `brand` HTML template;
- * otherwise the hardcoded "Powered by NocoBase" default.
+ * otherwise the hardcoded "Powered by Dan.AI" fork default.
  *
  * The custom-brand branch keeps the `.nb-brand` className so the plugin's
  * stylesheet can target it; the env/default branches do not, matching the
@@ -85,7 +87,7 @@ export function PoweredBy() {
   // installed @nocobase/plugin-custom-brand.
   const envBrand = appInfo?.brand || fallbackBrand;
   if (envBrand?.title || envBrand?.homepageUrl) {
-    const brandTitle = envBrand.title || 'NocoBase';
+    const brandTitle = envBrand.title || 'Dan.AI';
     const homePage = envBrand.homepageUrl || homePageUrls[i18n.language] || homePageUrls['en-US'];
 
     return (
@@ -115,7 +117,7 @@ export function PoweredBy() {
     <div className={brandStyle}>
       Powered by{' '}
       <a href={homePage} target="_blank" rel="noreferrer">
-        NocoBase
+        Dan.AI
       </a>
     </div>
   );

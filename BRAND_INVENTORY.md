@@ -110,8 +110,8 @@ Legend:
 | v1-4 | `src/user/Help.tsx:67` | Help menu "Handbook" link | hardcoded `docs.nocobase.com` URL | `appInfo.brand?.docsUrl` | **Done** (slice 2) |
 | v1-5 | `src/user/Help.tsx:79` | Help menu "License" link | hardcoded `nocobase.com/agreement` URL | `appInfo.brand?.agreementUrl` | **Done** (slice 2) |
 | v1-6 | `src/user/Help.tsx:126-142` | About popover (custom-brand `about` HTML) | plugin `options.options.about` | unchanged (fallback preserved) | Low |
-| v1-7 | `src/powered-by/index.tsx:24-26` | "Powered by" footer URL map | hardcoded `nocobase.com` URLs | `appInfo.brand?.homepageUrl` | Low |
-| v1-8 | `src/powered-by/index.tsx:45` | "Powered by" footer default text | hardcoded literal `Powered by <a…>NocoBase</a>` | built from `appInfo.brand` | Low |
+| v1-7 | `src/powered-by/index.tsx:24-26` | "Powered by" footer URL map | fork default `https://dan.ai` | `appInfo.brand?.homepageUrl` | **Done** (fork default aligned) |
+| v1-8 | `src/powered-by/index.tsx:45` | "Powered by" footer default text | hardcoded `Powered by <a…>Dan.AI</a>` (fork default, matches the server `app:getInfo` brand) | built from `appInfo.brand` | **Done** (fork default aligned) |
 | v1-9 | `src/powered-by/index.tsx:44` | "Powered by" footer override | plugin `options.options.brand` | unchanged (fallback preserved) | Low |
 | v1-10 | `src/document-title/index.tsx:46,68` | browser `document.title` | system-settings `data.title` (already data-driven) | unchanged | Low |
 | v1-11 | `src/route-switch/antd/admin-layout/AdminLayoutComponentV1.tsx:78-97` | admin sidebar logo/title | system-settings `logo.url`/`title` (already data-driven) | unchanged | Low |
@@ -127,9 +127,9 @@ Legend:
 
 | # | file:line | Surface | Current source | Target source | Conflict risk |
 |---|---|---|---|---|---|
-| v2-1 | `src/components/PoweredBy.tsx:19-22` | "Powered by" footer URL map (`homePageUrls`) | hardcoded `nocobase.com` URLs | `appInfo.brand?.homepageUrl` | Low |
+| v2-1 | `src/components/PoweredBy.tsx:19-22` | "Powered by" footer URL map (`homePageUrls`) | fork default `https://dan.ai` | `appInfo.brand?.homepageUrl` | **Done** (fork default aligned) |
 | v2-2 | `src/components/PoweredBy.tsx:48-58` | "Powered by" footer custom-brand branch | plugin `options.options.brand` | unchanged (fallback preserved) | Low |
-| v2-3 | `src/components/PoweredBy.tsx:61-68` | "Powered by" footer default branch | hardcoded `Powered by … NocoBase` | built from `appInfo.brand` | Low |
+| v2-3 | `src/components/PoweredBy.tsx:61-68` | "Powered by" footer default branch | hardcoded `Powered by … Dan.AI` (fork default, matches the server `app:getInfo` brand) | built from `appInfo.brand` | **Done** (fork default aligned) |
 | v2-4 | `src/flow/admin-shell/admin-layout/HelpLite.tsx:48` | Help menu header — product name | hardcoded `NocoBase` | `appInfo.brand?.title ?? 'NocoBase'` | **Done** (slice 2, `f033ea17bc`) |
 | v2-5 | `src/flow/admin-shell/admin-layout/HelpLite.tsx:61` | Help menu "Home page" link | hardcoded `nocobase.com` URL | `appInfo.brand?.homepageUrl` | **Done** (slice 2) |
 | v2-6 | `src/flow/admin-shell/admin-layout/HelpLite.tsx:73` | Help menu "Handbook" link | hardcoded `docs.nocobase.com` URL | `appInfo.brand?.docsUrl` | **Done** (slice 2) |

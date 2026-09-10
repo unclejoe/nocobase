@@ -22,9 +22,12 @@ export const PoweredBy = () => {
   const customBrandPlugin: any = usePlugin('@nocobase/plugin-custom-brand');
   const data = useCurrentAppInfo();
   const apiClient = useAPIClient();
+  // Fork default brand (see BRAND_INVENTORY.md §1): the server already reports DAN.AI as the
+  // default `app:getInfo` brand, so the client-side hardcoded fallback must match it — otherwise
+  // any tier that misses (e.g. the signin page before appInfo arrives) leaks "NocoBase".
   const urls = {
-    'en-US': 'https://www.nocobase.com',
-    'zh-CN': 'https://www.nocobase.com/cn/',
+    'en-US': 'https://dan.ai',
+    'zh-CN': 'https://dan.ai',
   };
   const style = css`
     text-align: center;
@@ -63,13 +66,13 @@ export const PoweredBy = () => {
   // Resolution order (see BRAND_INVENTORY.md §1): env-driven brand (set via
   // `APP_BRAND_*` env vars, surfaced through `app:getInfo`) wins; otherwise the
   // `@nocobase/plugin-custom-brand` plugin's `brand` HTML template; otherwise the
-  // hardcoded "Powered by NocoBase" default.
+  // hardcoded "Powered by Dan.AI" fork default.
   const envBrand = data?.data?.brand || fallbackBrand;
   const envBrandTitle = envBrand?.title;
   const envBrandHtml =
     envBrandTitle || envBrand?.homepageUrl
       ? `Powered by <a href="${envBrand?.homepageUrl || urls[i18n.language] || urls['en-US']}" target="_blank">${
-          envBrandTitle || 'NocoBase'
+          envBrandTitle || 'Dan.AI'
         }</a>`
       : null;
 
@@ -80,7 +83,7 @@ export const PoweredBy = () => {
         __html: parseHTML(
           envBrandHtml ||
             customBrandPlugin?.options?.options?.brand ||
-            `Powered by <a href="${urls[i18n.language] || urls['en-US']}" target="_blank">NocoBase</a>`,
+            `Powered by <a href="${urls[i18n.language] || urls['en-US']}" target="_blank">Dan.AI</a>`,
           { appVersion },
         ),
       }}

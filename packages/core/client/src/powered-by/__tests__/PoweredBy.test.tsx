@@ -13,7 +13,7 @@ import React from 'react';
 
 // v1 PoweredBy brand resolution regression. Mirrors the v2 PoweredBy.test.tsx
 // contract: env-driven brand (app:getInfo `brand`) > plugin-custom-brand >
-// hardcoded "Powered by NocoBase" default. See BRAND_INVENTORY.md §1.
+// hardcoded "Powered by Dan.AI" fork default. See BRAND_INVENTORY.md §1.
 describe('PoweredBy (v1)', () => {
   const renderPoweredBy = async (appGetInfoData: Record<string, any> = {}) => {
     const Root = () => (
@@ -35,13 +35,13 @@ describe('PoweredBy (v1)', () => {
     });
   };
 
-  it('renders the default "Powered by NocoBase" when no brand override is set', async () => {
+  it('renders the default "Powered by Dan.AI" when no brand override is set', async () => {
     const { container } = await renderPoweredBy();
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'NocoBase' })).toHaveAttribute('href', 'https://www.nocobase.com');
+      expect(screen.getByRole('link', { name: 'Dan.AI' })).toHaveAttribute('href', 'https://dan.ai');
     });
-    expect(container).toHaveTextContent('Powered by NocoBase');
+    expect(container).toHaveTextContent('Powered by Dan.AI');
   });
 
   it('renders the env-driven brand (APP_BRAND_*) when app:getInfo provides it', async () => {
@@ -61,7 +61,7 @@ describe('PoweredBy (v1)', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'TitleOnly' })).toHaveAttribute('href', 'https://www.nocobase.com');
+      expect(screen.getByRole('link', { name: 'TitleOnly' })).toHaveAttribute('href', 'https://dan.ai');
     });
     expect(container).toHaveTextContent('Powered by TitleOnly');
   });
