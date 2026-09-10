@@ -36,7 +36,8 @@ fi
 
 cd "$REPO_ROOT"
 TAG="$(git rev-parse --short HEAD)"
-TAR_FILE="/tmp/${IMAGE_NAME}-${TAG}.tar"
+TAR_APP="/tmp/${IMAGE_NAME}-${TAG}.tar"
+TAR_PG="/tmp/${IMAGE_NAME}-postgres-18.tar"
 
 # An existing local image with the HEAD tag means this exact source was already built — shipping
 # it as-is keeps a full 40-minute rebuild off the critical path (pass --force-build to redo).
@@ -63,10 +64,10 @@ if [ "$BUILD_ONLY" -eq 1 ]; then
 fi
 
 verify_postgres_image() {
-  # podman 6.1.x multi-image load has been observed to mis-assign repo tags (the postgres tag
-  # ending up on the app image). Both images share the entrypoint name, so probe a postgres-only
-  # binary. Keep the major aligned with the local dev database (PG18) so dumps restore either way.
-  if ! podman run --rm "$PG_IMAGE" psql --version >/dev/null 2>&1; then
+  # Probe a binary that exists ONLY in the real postgres image. psql is not a valid probe: the
+  # app image ships postgresql-client too (pg_isready for the entrypoint wait loop). The postgres
+  # server binary is absent from the app image, so an --entrypoint override fails there.
+  if ! podman run --rm --entrypoint postgres "$PG_IMAGE" --version >/dev/null 2>&1; then
     echo "${PG_IMAGE} does not point at a real postgres image; fix before shipping:" >&2
     echo "  podman rmi ${PG_IMAGE} && podman pull ${PG_IMAGE}" >&2
     return 1
@@ -77,23 +78,32 @@ echo "==> [2/5] ensuring ${PG_IMAGE} exists locally (shipped inside the tar)..."
 podman image exists "$PG_IMAGE" || podman pull "$PG_IMAGE"
 verify_postgres_image
 
-echo "==> [3/5] saving ${IMAGE_NAME}:${TAG} + ${PG_IMAGE} to ${TAR_FILE}..."
-podman save -o "$TAR_FILE" "${IMAGE_NAME}:${TAG}" "$PG_IMAGE"
+echo "==> [3/5] saving ${IMAGE_NAME}:${TAG} + ${PG_IMAGE} (one docker-archive per image)..."
+# Multi-image docker-archives mis-assign repo tags on load across podman versions (seen on both
+# 6.1.1 and 4.9.4: the postgres tag ended up on the app image), and podman save -o refuses to
+# append to an existing archive — so save each image to a fresh standalone tar.
+rm -f "$TAR_APP" "$TAR_PG"
+podman save -o "$TAR_APP" "${IMAGE_NAME}:${TAG}"
+podman save -o "$TAR_PG" "$PG_IMAGE"
 
-echo "==> [4/5] rsyncing image + deploy/ to ${REMOTE}:${REMOTE_DIR}..."
+echo "==> [4/5] rsyncing images + deploy/ to ${REMOTE}:${REMOTE_DIR}..."
 ssh_remote() { ssh -p "$SSH_PORT" "$REMOTE" "$@"; }
 rsync -azP -e "ssh -p ${SSH_PORT}" \
-  "$TAR_FILE" "${REMOTE}:${REMOTE_DIR}/"
+  "$TAR_APP" "$TAR_PG" "${REMOTE}:${REMOTE_DIR}/"
 rsync -azP -e "ssh -p ${SSH_PORT}" \
   --exclude storage/ \
   "${REPO_ROOT}/docker/danai/deploy/" "${REMOTE}:${REMOTE_DIR}/"
 
-echo "==> [5/5] loading image and starting compose on ${REMOTE}..."
-ssh_remote "mkdir -p ${REMOTE_DIR} && podman load -i ${REMOTE_DIR}/$(basename "$TAR_FILE")"
-# same tag-mixup guard on the remote side after load
-if ! ssh_remote "podman run --rm ${PG_IMAGE} psql --version" >/dev/null 2>&1; then
+echo "==> [5/5] loading images and starting compose on ${REMOTE}..."
+ssh_remote "mkdir -p ${REMOTE_DIR} && podman load -i ${REMOTE_DIR}/$(basename "$TAR_APP") && podman load -i ${REMOTE_DIR}/$(basename "$TAR_PG")"
+# tag guard on the remote side after load (same probe as the local one)
+if ! ssh_remote "podman run --rm --entrypoint postgres ${PG_IMAGE} --version" >/dev/null 2>&1; then
   echo "remote ${PG_IMAGE} tag is wrong after load; fix with:" >&2
   echo "  ssh -p ${SSH_PORT} ${REMOTE} 'podman rmi ${PG_IMAGE} && podman pull ${PG_IMAGE}'" >&2
+  exit 1
+fi
+if ! ssh_remote "podman image exists ${IMAGE_NAME}:${TAG}"; then
+  echo "remote ${IMAGE_NAME}:${TAG} missing after load" >&2
   exit 1
 fi
 # 首次部署：生成 .env 并自动填入两把密钥；DB_PASSWORD 云端自行修改
@@ -104,7 +114,7 @@ ssh_remote "cd ${REMOTE_DIR} && if [ ! -f .env ]; then \
   sed -i \"s|^DB_PASSWORD=.*|DB_PASSWORD=\$(openssl rand -base64 24 | tr -d '/+=')|\" .env && \
   echo '.env created with generated keys'; \
 else echo '.env exists, kept as-is'; fi"
-ssh_remote "cd ${REMOTE_DIR} && rm -f $(basename "$TAR_FILE") && TAG=${TAG} podman compose up -d"
+ssh_remote "cd ${REMOTE_DIR} && rm -f $(basename "$TAR_APP") $(basename "$TAR_PG") && TAG=${TAG} podman compose up -d"
 
 echo "==> waiting for app to come up on ${REMOTE} (first boot installs the database, 1-2 min)..."
 for i in $(seq 1 40); do
