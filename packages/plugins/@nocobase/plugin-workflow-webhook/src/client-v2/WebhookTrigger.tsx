@@ -16,8 +16,12 @@
  * For more information, please see: https://www.nocobase.com/agreement.
  */
 
-import { Trigger, useCurrentWorkflowContext, type LoaderOf } from '@nocobase/plugin-workflow/client-v2';
-import type { VariableOption } from '@nocobase/flow-engine';
+import {
+  Trigger,
+  useCurrentWorkflowContext,
+  type LoaderOf,
+  type VariableOption,
+} from '@nocobase/plugin-workflow/client-v2';
 import { Checkbox, Form, Input } from 'antd';
 import React, { useEffect, useState } from 'react';
 

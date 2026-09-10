@@ -12,7 +12,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
 
-const supportedLocales = ['en_US', 'fr_FR', 'pt_BR', 'ja_JP', 'ko_KR', 'ru_RU', 'sv_SE', 'zh_CN', 'zh_TW'];
+const supportedLocales = ['en_US', 'fr_FR', 'pt_BR', 'ja_JP', 'ko_KR', 'ru_RU', 'sv_SE', 'zh_CN', 'zh_TW'] as const;
+
+type VditorLang = (typeof supportedLocales)[number];
+
+// vditor's IOptions.lang is `keyof II18n` (a literal union), so the normalized locale must be
+// narrowed to that union instead of passing a plain string.
+const isVditorLang = (value: string): value is VditorLang => (supportedLocales as readonly string[]).includes(value);
 
 const toolbar = [
   'headings',
@@ -58,9 +64,9 @@ export const MarkdownKnowledgeVditorField: React.FC<{
   const vdRef = useRef<Vditor | null>(null);
   const [editorReady, setEditorReady] = useState(false);
 
-  const lang: string = useMemo(() => {
+  const lang = useMemo<VditorLang>(() => {
     const current = (locale || 'en-US').replace(/-/g, '_');
-    return supportedLocales.includes(current) ? current : 'en_US';
+    return isVditorLang(current) ? current : 'en_US';
   }, [locale]);
 
   // Vditor loads its own assets (toolbar icons, parsers, KaTeX, etc.) from a
