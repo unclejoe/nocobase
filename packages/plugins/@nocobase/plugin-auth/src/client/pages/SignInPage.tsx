@@ -10,7 +10,7 @@
 import { css } from '@emotion/css';
 import { Space, Tabs } from 'antd';
 import React, { createElement, useContext } from 'react';
-import { useCurrentDocumentTitle, usePlugin, useViewport } from '@nocobase/client';
+import { useCurrentDocumentTitle, usePlugin, useToken, useViewport } from '@nocobase/client';
 import AuthPlugin, { AuthOptions } from '..';
 import { Authenticator, AuthenticatorsContext } from '../authenticator';
 import { useAuthTranslation } from '../locale';
@@ -48,6 +48,7 @@ export const useSignInButtons = (authenticators = []) => {
 
 export const SignInPage = () => {
   const { t } = useAuthTranslation();
+  const { token } = useToken();
   useCurrentDocumentTitle('Signin');
   useViewport();
   const signInForms = useSignInForms();
@@ -55,7 +56,7 @@ export const SignInPage = () => {
   const signInButtons = useSignInButtons(authenticators);
 
   if (!authenticators.length) {
-    return <div style={{ color: '#ccc' }}>{t('No authentication methods available.')}</div>;
+    return <div style={{ color: token.colorTextDescription }}>{t('No authentication methods available.')}</div>;
   }
 
   const tabs = authenticators
