@@ -29,6 +29,7 @@ import {
   useSystemSettings,
 } from '@nocobase/client-v2';
 import { AdminLayoutModelV1 } from './AdminLayoutModel';
+import { InvaderLogo } from './InvaderLogo';
 import {
   AdminLayoutMenuItemModel,
   AdminLayoutMenuModelRenderer,
@@ -67,30 +68,17 @@ const className2 = css`
   width: 100%;
   height: 100%;
 `;
-const className3 = css`
-  width: 100%;
-  height: 100%;
-  font-weight: 500;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
 
 const NocoBaseLogo = observer(() => {
   const { token } = antdTheme.useToken();
   const customToken = token as CustomToken;
   const result = useSystemSettings();
-  const { t } = useTranslation('lm-collections');
-  const fontSizeStyle = useMemo(() => ({ fontSize: customToken.fontSizeHeading3 }), [customToken.fontSizeHeading3]);
 
   const hasLogo = result?.data?.data?.logo?.url;
   const logo = hasLogo ? (
     <img className={className2} src={result?.data?.data?.logo?.url} />
   ) : (
-    <span style={fontSizeStyle} className={className3}>
-      {t(result?.data?.data?.title)}
-    </span>
+    <InvaderLogo height={customToken.fontSizeHeading3 + 4} />
   );
 
   return (
